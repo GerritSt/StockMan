@@ -25,3 +25,10 @@ doc/api/
 
 .flutter-plugins
 .flutter-plugins-dependencies
+
+# my git ignore
+*.txt
+*.pdf
+*.jpg
+*.png
+GUIs/
