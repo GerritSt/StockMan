@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "106198118755",
+    "project_id": "stockman-ade94",
+    "storage_bucket": "stockman-ade94.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:106198118755:android:8a881a1eefb1b910c3a356",
+        "android_client_info": {
+          "package_name": "com.svd.stockman"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCt3SjVyRvZHpPUEerWr0uD6SCQiQdZqs4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
