@@ -1,16 +1,44 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:stockman/src/models/cattle_profile.dart';
 
 class CattleDbService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  // fetch all the catlle from the "cattle" collection
-  Future<List<Map<String, dynamic>>> getCattle() async {
-    QuerySnapshot snapshot = await _db.collection('cattle').get();
-    return snapshot.docs.map((doc) => doc.data() as Map<String, dynamic>).toList();
+  // Fetch all cattle for a specific camp
+  Future<List<Cattle>> getCattle({
+    required String farmerId,
+    required String farmId,
+    required String campId,
+  }) async {
+    QuerySnapshot snapshot = await _db
+        .collection('farmers')
+        .doc(farmerId)
+        .collection('farms')
+        .doc(farmId)
+        .collection('camps')
+        .doc(campId)
+        .collection('cattle')
+        .get();
+    return snapshot.docs.map((doc) => Cattle.fromSnapshot(doc)).toList();
   }
 
-  // Add entry to cattle collection
-  Future<void> addCattle(Map<String, dynamic> cattleData) async {
-    await _db.collection('cattle').add(cattleData);
+  // Add a cattle entry to a specific camp
+  Future<void> addCattle({
+    required String farmerId,
+    required String farmId,
+    required String campId,
+    required Cattle cattle,
+    required String cattleId,
+  }) async {
+    await _db
+        .collection('farmers')
+        .doc(farmerId)
+        .collection('farms')
+        .doc(farmId)
+        .collection('camps')
+        .doc(campId)
+        .collection('cattle')
+        .doc(cattleId)
+        .set(cattle.toMap());
   }
 }

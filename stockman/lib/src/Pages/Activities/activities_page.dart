@@ -25,6 +25,7 @@ class ActivitiesPage extends StatelessWidget {
   }
 }
 
+// Class for the buttons in the activities page
 class ActivitiesButton extends StatelessWidget {
   const ActivitiesButton(this.activityIcon, this.buttonLabel, {super.key});
   final IconData activityIcon;
@@ -43,7 +44,7 @@ class ActivitiesButton extends StatelessWidget {
                   padding: const EdgeInsets.only(right: 13, top: 5, bottom: 5),
                   child: Icon(activityIcon, size: 40),
                 ),
-                Text(buttonLabel, style: const TextStyle(fontSize: 18),),
+                Text(buttonLabel, style: TextColorTheme.inAppText,),
               ],
             )),
     );

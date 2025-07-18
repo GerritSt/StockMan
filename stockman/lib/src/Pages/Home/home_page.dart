@@ -4,12 +4,19 @@ import 'package:stockman/src/config/text_theme.dart';
 import 'package:stockman/src/models/cattle_profile.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage(
-      {super.key,
-      required this.cattleDataFuture,
-      required this.refreshCattleData});
+  final String farmerId;
+  final String farmId;
+  final String campId;
+  const HomePage({
+    super.key,
+    required this.farmerId,
+    required this.farmId,
+    required this.campId,
+    required this.cattleDataFuture,
+    required this.refreshCattleData,
+  });
 
-  final Future<List<Map<String, dynamic>>> cattleDataFuture;
+  final Future<List<Cattle>> cattleDataFuture;
   final VoidCallback refreshCattleData;
 
   @override
@@ -18,11 +25,11 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   // _selectedCattle is a set of selected cattle entries
-  final Set<Map<String, dynamic>> _selectedCattle = {};
+  final Set<Cattle> _selectedCattle = {};
   // if true selection mode is enabled
   bool _selectionMode = false;
 
-  void _toggleSelection(Map<String, dynamic> cattleEntry) {
+  void _toggleSelection(Cattle cattleEntry) {
     setState(() {
       if (_selectedCattle.contains(cattleEntry)) {
         _selectedCattle.remove(cattleEntry);
@@ -61,7 +68,7 @@ class _HomePageState extends State<HomePage> {
           IconButton(onPressed: () {}, icon: const Icon(Icons.search)),
         ],
       ),
-      body: FutureBuilder<List<Map<String, dynamic>>>(
+      body: FutureBuilder<List<Cattle>>(
           future: widget.cattleDataFuture,
           builder: (context, snapshot) {
             // Handle loading state
@@ -104,8 +111,11 @@ class _HomePageState extends State<HomePage> {
           Navigator.push(
             context,
             MaterialPageRoute(
-                builder: (context) =>
-                    AddCattlePage(refreshCattleData: widget.refreshCattleData)),
+                builder: (context) => AddCattlePage(
+                  farmerId: widget.farmerId,
+                  farmId: widget.farmId,
+                  campId: widget.campId,
+                  refreshCattleData: widget.refreshCattleData)),
           );
         },
         icon: Icon(Icons.add),
@@ -132,12 +142,10 @@ class ListEntryFormat extends StatelessWidget {
   });
 
   // Format: { "name": "Cow 1", "breed": "Holstein", "age": 5 }
-  final Map<String, dynamic> cattleEntry;
+  final Cattle cattleEntry;
   final bool isSelected;
-  final ValueChanged<Map<String, dynamic>> onSelected;
+  final ValueChanged<Cattle> onSelected;
   final bool selectionMode;
-
-  CattleProfile get cattle => CattleProfile(cattleMap: cattleEntry);
 
   @override
   Widget build(BuildContext context) {
@@ -145,13 +153,13 @@ class ListEntryFormat extends StatelessWidget {
       margin: EdgeInsets.only(left: 7, right: 7, top: 5),
       child: ListTile(
         title: Row(
-          children: [Text(cattle.tag)],
+          children: [Text(cattleEntry.tag)],
         ),
         subtitle: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(cattle.sex),
-            Text(cattle.weight.toString()),
+            Text(cattleEntry.sex),
+            Text(cattleEntry.weight.toString()),
           ],
         ),
         leading: Icon(Icons.pets),

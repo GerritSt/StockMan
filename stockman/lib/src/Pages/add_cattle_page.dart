@@ -2,14 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:stockman/src/config/app_theme.dart';
 import 'package:stockman/src/config/text_theme.dart';
 import 'package:stockman/src/providers/cattle_db_service.dart';
+import 'package:stockman/src/models/cattle_profile.dart';
 import 'package:numberpicker/numberpicker.dart'; // Add this line
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 enum Status { active, sold, dead }
 
 class AddCattlePage extends StatefulWidget {
-  const AddCattlePage({super.key, required this.refreshCattleData});
-
+  final String farmerId;
+  final String farmId;
+  final String campId;
   final VoidCallback refreshCattleData;
+  const AddCattlePage({super.key, required this.farmerId, required this.farmId, required this.campId, required this.refreshCattleData});
 
   @override
   // ignore: library_private_types_in_public_api
@@ -26,6 +30,11 @@ class _AddCattlePageState extends State<AddCattlePage> {
   Status _status = Status.active;
   final Map<String, double> _weight = {}; // Change DateTime to String
   int _group = 1; // Add this line
+
+  // TODO: Replace these with actual logic to get the current user's IDs
+  // final String farmerId = 'demoFarmerId';
+  // final String farmId = 'demoFarmId';
+  // final String campId = 'demoCampId';
 
   Future<void> _selectDate(BuildContext context, String key) async {
     DateTime? pickedDate = await showDatePicker(
@@ -461,13 +470,38 @@ class _AddCattlePageState extends State<AddCattlePage> {
                         },
                         child: Text('Cancel')),
                     ElevatedButton(
-                      onPressed: () {
+                      onPressed: () async {
                         if (_formKey.currentState!.validate()) {
                           _formKey.currentState!.save();
-                          _dbService.addCattle(_cattleData).then((_) {
-                            widget.refreshCattleData();
-                            Navigator.of(context).pop();
-                          });
+                          // Generate deterministic cattle ID
+                          final birthDate = _cattleData['birthdate'] is String
+                              ? DateTime.tryParse(_cattleData['birthdate']) ?? DateTime(1950, 1, 1)
+                              : DateTime(1950, 1, 1);
+                          final sex = _cattleData['sex'] ?? '';
+                          final rand = (1000 + (DateTime.now().millisecondsSinceEpoch % 9000)).toString();
+                          final dateStr = " {birthDate.year.toString().padLeft(4, '0')} {birthDate.month.toString().padLeft(2, '0')} {birthDate.day.toString().padLeft(2, '0')}";
+                          final cattleId = "${dateStr}_${sex}_$rand";
+                          // Convert form data to Cattle object
+                          final cattle = Cattle(
+                            id: cattleId,
+                            tag: _cattleData['tag'] ?? '',
+                            birthDate: birthDate,
+                            group: _cattleData['group'] ?? 0,
+                            sex: sex,
+                            breed: Map<String, double>.from(_breed),
+                            weight: Map<String, dynamic>.from(_weight),
+                            farm: <String, GeoPoint>{}, // Placeholder, update as needed
+                            camp: <String, GeoPoint>{}, // Placeholder, update as needed
+                          );
+                          await _dbService.addCattle(
+                            farmerId: widget.farmerId,
+                            farmId: widget.farmId,
+                            campId: widget.campId,
+                            cattle: cattle,
+                            cattleId: cattleId,
+                          );
+                          widget.refreshCattleData();
+                          Navigator.of(context).pop();
                         }
                       },
                       child: Text('Add'),

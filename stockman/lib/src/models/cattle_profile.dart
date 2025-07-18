@@ -1,31 +1,58 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-class CattleProfile {
-  CattleProfile({required this.cattleMap});
+class Cattle {
+  final String id;
+  final String tag;
+  final DateTime birthDate;
+  final int group;
+  final String sex;
+  final Map<String, double> breed;
+  final Map<String, dynamic> weight;
+  final Map<String, GeoPoint> farm;
+  final Map<String, GeoPoint> camp;
 
-  final Map<String, dynamic> cattleMap;
+  Cattle({
+    required this.id,
+    required this.tag,
+    required this.birthDate,
+    required this.group,
+    required this.sex,
+    required this.breed,
+    required this.weight,
+    required this.farm,
+    required this.camp,
+  });
 
-  String get docID => cattleMap['Document ID'];
- 
-  String get tag => (cattleMap['tag'] ?? 'Unknown');
+  // Factory constructor from Firestore DocumentSnapshot
+  factory Cattle.fromSnapshot(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
 
-  Map<String, dynamic> get weight {
-    return (cattleMap['weight'] ?? {'1950-01-01': 0.0});
+    return Cattle(
+      id: doc.id,
+      tag: data['tag'] ?? 'Unknown',
+      birthDate: (data['birthdate'] is Timestamp)
+          ? (data['birthdate'] as Timestamp).toDate()
+          : DateTime(1950, 1, 1),
+      group: data['group'] ?? 0,
+      sex: data['sex'] ?? 'Unknown',
+      breed: Map<String, double>.from(data['breed'] ?? {'Unknown': 1.0}),
+      weight: Map<String, dynamic>.from(data['weight'] ?? {'1950-01-01': 0.0}),
+      farm: Map<String, GeoPoint>.from(data['farm'] ?? {'Unknown': GeoPoint(0.0, 0.0)}),
+      camp: Map<String, GeoPoint>.from(data['camp'] ?? {'Unknown': GeoPoint(0.0, 0.0)}),
+    );
   }
 
-  DateTime get birthdate {
-    final rawDate = cattleMap['birthdate'];
-    if (rawDate is Timestamp) {
-      return rawDate.toDate(); // For Firestore Timestamps
-    } else if (rawDate is DateTime) {
-      return rawDate; // Already a DateTime
-    } else {
-      // Default or invalid value
-      return DateTime(1950, 1, 1);
-    }
+  // Optional: for saving to Firestore
+  Map<String, dynamic> toMap() {
+    return {
+      'tag': tag,
+      'birthdate': Timestamp.fromDate(birthDate),
+      'group': group,
+      'sex': sex,
+      'breed': breed,
+      'weight': weight,
+      'farm': farm,
+      'camp': camp,
+    };
   }
-
-  int get group => (cattleMap['group'] ?? 0);
-  String get sex => (cattleMap['sex'] ?? 'Unknown');
-  Map<String, double> get breed => (cattleMap['breed'] ?? {'Unknown': 1.0});
 }
