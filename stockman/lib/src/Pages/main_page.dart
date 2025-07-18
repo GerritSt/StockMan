@@ -4,11 +4,15 @@ import 'package:stockman/src/Pages/Changeslog/changeslog_page.dart';
 import 'package:stockman/src/Pages/Home/home_page.dart';
 import 'package:stockman/src/Pages/Profile/profile_page.dart';
 import 'package:stockman/src/Pages/Statistics/statistics_page.dart';
+import 'package:stockman/src/models/cattle_profile.dart';
 import 'package:stockman/src/providers/cattle_db_service.dart';
 import 'package:stockman/src/widgets/navigation_bar.dart';
 
 class MainPage extends StatefulWidget {
-  const MainPage({super.key});
+  final String farmerId;
+  final String? farmId;
+  final String? campId;
+  const MainPage({super.key, required this.farmerId, this.farmId, this.campId});
   @override
   State<MainPage> createState() => _MainPageState();
 }
@@ -16,14 +20,18 @@ class MainPage extends StatefulWidget {
 class _MainPageState extends State<MainPage> {
   int _selectedIndex = 0;
   final PageController _pageController = PageController();
-  
   final CattleDbService _dbService = CattleDbService();
-  late Future<List<Map<String, dynamic>>> _cattleDataFuture;
+
+  late Future<List<Cattle>> _cattleDataFuture;
 
   @override
   void initState() {
     super.initState();
-    _cattleDataFuture = _dbService.getCattle();
+    _cattleDataFuture = _dbService.getCattle(
+      farmerId: widget.farmerId,
+      farmId: widget.farmId ?? 'farm_001',
+      campId: widget.campId ?? 'camp_001001',
+    );
   }
 
   void _onItemTapped(int index) {
@@ -45,7 +53,11 @@ class _MainPageState extends State<MainPage> {
 
   void _refreshCattleData() {
     setState(() {
-      _cattleDataFuture = _dbService.getCattle();
+      _cattleDataFuture = _dbService.getCattle(
+        farmerId: widget.farmerId,
+        farmId: widget.farmId ?? 'farm_001',
+        campId: widget.campId ?? 'camp_001001',
+      );
     });
   }
 
@@ -56,7 +68,13 @@ class _MainPageState extends State<MainPage> {
         controller: _pageController,
         onPageChanged: _onPageChanged,
         children: [
-          HomePage(cattleDataFuture: _cattleDataFuture, refreshCattleData: _refreshCattleData),
+          HomePage(
+            farmerId: widget.farmerId,
+            farmId: widget.farmId ?? 'farm_001',
+            campId: widget.campId ?? 'camp_001001',
+            cattleDataFuture: _cattleDataFuture,
+            refreshCattleData: _refreshCattleData,
+          ),
           ActivitiesPage(),
           const ChangeslogPage(),
           const StatisticsPage(),

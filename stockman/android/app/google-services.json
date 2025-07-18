@@ -12,7 +12,20 @@
           "package_name": "com.svd.stockman"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "106198118755-guv7v4p6ghuuev975jqbaim3v50pjeng.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.svd.stockman",
+            "certificate_hash": "913a6b282c632a39083f16d0b613563edeab2127"
+          }
+        },
+        {
+          "client_id": "106198118755-tm6ncncgn8f49e0d8jf4neiplgfrupqb.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyCt3SjVyRvZHpPUEerWr0uD6SCQiQdZqs4"
@@ -20,7 +33,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "106198118755-tm6ncncgn8f49e0d8jf4neiplgfrupqb.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "106198118755-qq1pnmt0ld1gl6tp8jhreqsj3ad8ghll.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.stockman"
+              }
+            }
+          ]
         }
       }
     }

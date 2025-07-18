@@ -3,12 +3,15 @@ import 'package:stockman/src/Pages/main_page.dart';
 import 'package:stockman/src/config/app_theme.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'src/Pages/Login/login_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  await FirebaseAuth.instance.signOut(); // Always sign out on app start
   runApp(const StockMan());
 }
 
@@ -21,7 +24,20 @@ class StockMan extends StatelessWidget {
     return MaterialApp(
       title: 'StockMan',
       theme: AppTheme.lightTheme,
-      home: const MainPage(),
+      home: StreamBuilder<User?>(
+        stream: FirebaseAuth.instance.authStateChanges(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasData) {
+            final user = snapshot.data!;
+            return MainPage(farmerId: user.uid);
+          } else {
+            return const LoginPage();
+          }
+        },
+      ),
     );
   }
 }
