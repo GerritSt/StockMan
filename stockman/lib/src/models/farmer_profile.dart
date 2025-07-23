@@ -1,9 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:stockman/src/models/cattle_profile.dart';
 
+const GeoPoint nowhere = GeoPoint(0.0, 0.0);
+const String UNKNOWN = 'Unknown';
+
 class Farmer {
   final String id;
   final String name;
+  final String surname;
   final String email;
   final String phone;
   final GeoPoint location;
@@ -12,11 +16,27 @@ class Farmer {
   Farmer({
     required this.id,
     required this.name,
+    required this.surname,
     required this.email,
     required this.phone,
     required this.location,
     required this.farms,
   });
+
+  // Factory constructor from Firestore DocumentSnapshot (farms can be passed in)
+  factory Farmer.fromSnapshot(DocumentSnapshot doc,
+      {List<Farm> farms = const []}) {
+    final data = doc.data() as Map<String, dynamic>;
+    return Farmer(
+      id: doc.id,
+      name: data['name'] ?? 'John',
+      surname: data['surname'] ?? 'Doe',
+      email: data['email'] ?? 'john@doe.com',
+      phone: data['phone'] ?? '0000000000',
+      location: data['location'] ?? nowhere,
+      farms: farms,
+    );
+  }
 }
 
 class Farm {
@@ -37,6 +57,21 @@ class Farm {
     required this.camps,
     required this.cattle,
   });
+
+  // Factory constructor from Firestore DocumentSnapshot (camps and cattle can be passed in)
+  factory Farm.fromSnapshot(DocumentSnapshot doc,
+      {List<Camp> camps = const [], List<Cattle> cattle = const []}) {
+    final data = doc.data() as Map<String, dynamic>;
+    return Farm(
+      id: doc.id,
+      name: data['name'] ?? UNKNOWN,
+      location: data['location'] ?? nowhere,
+      type: data['type'] ?? UNKNOWN,
+      size: data['size'] ?? 0,
+      camps: camps,
+      cattle: cattle,
+    );
+  }
 }
 
 class Camp {
@@ -51,4 +86,15 @@ class Camp {
     required this.location,
     required this.size,
   });
+
+  // Factory constructor from Firestore DocumentSnapshot
+  factory Camp.fromSnapshot(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    return Camp(
+      id: doc.id,
+      name: data['name'] ?? UNKNOWN,
+      location: data['location'] ?? nowhere,
+      size: data['size'] ?? 0,
+    );
+  }
 }
