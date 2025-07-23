@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:stockman/src/Pages/add_cattle_page.dart';
+import 'package:stockman/src/Pages/Home/add_cattle_page.dart';
 import 'package:stockman/src/config/text_theme.dart';
 import 'package:stockman/src/models/cattle_profile.dart';
 
@@ -112,10 +112,10 @@ class _HomePageState extends State<HomePage> {
             context,
             MaterialPageRoute(
                 builder: (context) => AddCattlePage(
-                  farmerId: widget.farmerId,
-                  farmId: widget.farmId,
-                  campId: widget.campId,
-                  refreshCattleData: widget.refreshCattleData)),
+                    farmerId: widget.farmerId,
+                    farmId: widget.farmId,
+                    campId: widget.campId,
+                    refreshCattleData: widget.refreshCattleData)),
           );
         },
         icon: Icon(Icons.add),
@@ -164,7 +164,9 @@ class ListEntryFormat extends StatelessWidget {
         ),
         leading: Icon(Icons.pets),
         trailing: selectionMode
-            ? (isSelected ? Icon(Icons.check_box) : Icon(Icons.check_box_outline_blank))
+            ? (isSelected
+                ? Icon(Icons.check_box)
+                : Icon(Icons.check_box_outline_blank))
             : null,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         visualDensity: VisualDensity.comfortable,

@@ -78,7 +78,7 @@ class _MainPageState extends State<MainPage> {
           ActivitiesPage(),
           const ChangeslogPage(),
           const StatisticsPage(),
-          const ProfilePage(),
+          ProfilePage(farmerId: widget.farmerId),
         ],
       ),
       bottomNavigationBar: NavigationBarStockman(
