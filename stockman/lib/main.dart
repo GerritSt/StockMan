@@ -32,7 +32,9 @@ class StockMan extends StatelessWidget {
           }
           if (snapshot.hasData) {
             final user = snapshot.data!;
-            return MainPage(farmerId: user.uid);
+            // The user is now signed in through the firebase authentication
+            // Send the UID through to MainPage
+            return MainPage(farmerUID: user.uid);
           } else {
             return const LoginPage();
           }

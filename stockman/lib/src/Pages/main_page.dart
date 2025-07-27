@@ -5,14 +5,22 @@ import 'package:stockman/src/Pages/Home/home_page.dart';
 import 'package:stockman/src/Pages/Profile/profile_page.dart';
 import 'package:stockman/src/Pages/Statistics/statistics_page.dart';
 import 'package:stockman/src/models/cattle_profile.dart';
+import 'package:stockman/src/models/farmer_profile.dart';
 import 'package:stockman/src/providers/cattle_db_service.dart';
+import 'package:stockman/src/providers/farmer_db_service.dart';
 import 'package:stockman/src/widgets/navigation_bar.dart';
 
+const String defaultFarmID = 'farm_001';
+const String defaultCampID = 'camp_001001';
+
 class MainPage extends StatefulWidget {
-  final String farmerId;
-  final String? farmId;
-  final String? campId;
-  const MainPage({super.key, required this.farmerId, this.farmId, this.campId});
+  final String farmerUID;
+  final String farmID = defaultFarmID;
+  final String campID = defaultCampID;
+  const MainPage({
+    super.key,
+    required this.farmerUID,
+  });
   @override
   State<MainPage> createState() => _MainPageState();
 }
@@ -20,17 +28,21 @@ class MainPage extends StatefulWidget {
 class _MainPageState extends State<MainPage> {
   int _selectedIndex = 0;
   final PageController _pageController = PageController();
-  final CattleDbService _dbService = CattleDbService();
-
+  // Database services
+  final FarmerDbService _farmerDBService = FarmerDbService();
+  final CattleDbService _cattleDBService = CattleDbService();
+  // Futures used as variables
+  late Future<Farmer> _farmerFuture;
   late Future<List<Cattle>> _cattleDataFuture;
 
   @override
   void initState() {
     super.initState();
-    _cattleDataFuture = _dbService.getCattle(
-      farmerId: widget.farmerId,
-      farmId: widget.farmId ?? 'farm_001',
-      campId: widget.campId ?? 'camp_001001',
+    // Get all of the information of the Farmer from firebase
+    _cattleDataFuture = _cattleDBService.getCattle(
+      farmerId: widget.farmerUID,
+      farmId: widget.farmID,
+      campId: widget.campID,
     );
   }
 
@@ -53,10 +65,10 @@ class _MainPageState extends State<MainPage> {
 
   void _refreshCattleData() {
     setState(() {
-      _cattleDataFuture = _dbService.getCattle(
-        farmerId: widget.farmerId,
-        farmId: widget.farmId ?? 'farm_001',
-        campId: widget.campId ?? 'camp_001001',
+      _cattleDataFuture = _cattleDBService.getCattle(
+        farmerId: widget.farmerUID,
+        farmId: widget.farmID,
+        campId: widget.campID,
       );
     });
   }
@@ -69,16 +81,16 @@ class _MainPageState extends State<MainPage> {
         onPageChanged: _onPageChanged,
         children: [
           HomePage(
-            farmerId: widget.farmerId,
-            farmId: widget.farmId ?? 'farm_001',
-            campId: widget.campId ?? 'camp_001001',
+            farmerId: widget.farmerUID,
+            farmId: widget.farmID,
+            campId: widget.campID,
             cattleDataFuture: _cattleDataFuture,
             refreshCattleData: _refreshCattleData,
           ),
           ActivitiesPage(),
           const ChangeslogPage(),
           const StatisticsPage(),
-          ProfilePage(farmerId: widget.farmerId),
+          ProfilePage(farmerId: widget.farmerUID),
         ],
       ),
       bottomNavigationBar: NavigationBarStockman(

@@ -24,6 +24,7 @@ class FarmerDbService {
     return Farmer(
       id: doc.id,
       name: data['name'] ?? '',
+      surname: data['surname'] ?? '',
       email: data['email'] ?? '',
       phone: data['phone'] ?? '',
       location: data['location'],
@@ -34,10 +35,16 @@ class FarmerDbService {
   // Add a farm to a farmer
   Future<void> addFarm(String farmerId, Farm farm) async {
     // Generate farm ID as farm_XXX
-    final farmsSnapshot = await _db.collection('farmers').doc(farmerId).collection('farms').get();
+    final farmsSnapshot =
+        await _db.collection('farmers').doc(farmerId).collection('farms').get();
     final farmCount = farmsSnapshot.size + 1;
     final farmId = 'farm_${farmCount.toString().padLeft(3, '0')}';
-    await _db.collection('farmers').doc(farmerId).collection('farms').doc(farmId).set({
+    await _db
+        .collection('farmers')
+        .doc(farmerId)
+        .collection('farms')
+        .doc(farmId)
+        .set({
       'name': farm.name,
       'location': farm.location,
       'type': farm.type,
@@ -47,7 +54,8 @@ class FarmerDbService {
 
   // Fetch all farms for a farmer
   Future<List<Farm>> getFarms(String farmerId) async {
-    final snapshot = await _db.collection('farmers').doc(farmerId).collection('farms').get();
+    final snapshot =
+        await _db.collection('farmers').doc(farmerId).collection('farms').get();
     List<Farm> farms = [];
     for (var doc in snapshot.docs) {
       final data = doc.data();
@@ -69,10 +77,24 @@ class FarmerDbService {
   Future<void> addCamp(String farmerId, String farmId, Camp camp) async {
     // Generate camp ID as camp_FFFFCCC (FFF=farm number, CCC=camp number)
     final farmNum = int.tryParse(farmId.split('_').last) ?? 1;
-    final campsSnapshot = await _db.collection('farmers').doc(farmerId).collection('farms').doc(farmId).collection('camps').get();
+    final campsSnapshot = await _db
+        .collection('farmers')
+        .doc(farmerId)
+        .collection('farms')
+        .doc(farmId)
+        .collection('camps')
+        .get();
     final campCount = campsSnapshot.size + 1;
-    final campId = 'camp_${farmNum.toString().padLeft(3, '0')}${campCount.toString().padLeft(3, '0')}';
-    await _db.collection('farmers').doc(farmerId).collection('farms').doc(farmId).collection('camps').doc(campId).set({
+    final campId =
+        'camp_${farmNum.toString().padLeft(3, '0')}${campCount.toString().padLeft(3, '0')}';
+    await _db
+        .collection('farmers')
+        .doc(farmerId)
+        .collection('farms')
+        .doc(farmId)
+        .collection('camps')
+        .doc(campId)
+        .set({
       'name': camp.name,
       'location': camp.location,
       'size': camp.size,
@@ -81,7 +103,13 @@ class FarmerDbService {
 
   // Fetch all camps for a farm
   Future<List<Camp>> getCamps(String farmerId, String farmId) async {
-    final snapshot = await _db.collection('farmers').doc(farmerId).collection('farms').doc(farmId).collection('camps').get();
+    final snapshot = await _db
+        .collection('farmers')
+        .doc(farmerId)
+        .collection('farms')
+        .doc(farmId)
+        .collection('camps')
+        .get();
     return snapshot.docs.map((doc) {
       final data = doc.data();
       return Camp(
@@ -92,4 +120,4 @@ class FarmerDbService {
       );
     }).toList();
   }
-} 
+}
