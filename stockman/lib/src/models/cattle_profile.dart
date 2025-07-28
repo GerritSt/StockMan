@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:stockman/src/config/constants.dart';
 
 class Cattle {
   final String id;
@@ -8,8 +9,8 @@ class Cattle {
   final String sex;
   final Map<String, double> breed;
   final Map<String, dynamic> weight;
-  final Map<String, GeoPoint> farm;
-  final Map<String, GeoPoint> camp;
+  final Map<DateTime, String> farm;
+  final Map<DateTime, String> camp;
 
   Cattle({
     required this.id,
@@ -37,8 +38,8 @@ class Cattle {
       sex: data['sex'] ?? 'Unknown',
       breed: Map<String, double>.from(data['breed'] ?? {'Unknown': 1.0}),
       weight: Map<String, dynamic>.from(data['weight'] ?? {'1950-01-01': 0.0}),
-      farm: Map<String, GeoPoint>.from(data['farm'] ?? {'Unknown': GeoPoint(0.0, 0.0)}),
-      camp: Map<String, GeoPoint>.from(data['camp'] ?? {'Unknown': GeoPoint(0.0, 0.0)}),
+      farm: Map<DateTime, String>.from(data['farm'] ?? {RANDOMDATE: 'Unknown'}),
+      camp: Map<DateTime, String>.from(data['camp'] ?? {RANDOMDATE: 'Unknown'}),
     );
   }
 

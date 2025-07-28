@@ -1,8 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:stockman/src/config/constants.dart';
 import 'package:stockman/src/models/cattle_profile.dart';
-
-const GeoPoint nowhere = GeoPoint(0.0, 0.0);
-const String UNKNOWN = 'Unknown';
 
 class Farmer {
   final String id;
@@ -24,8 +22,20 @@ class Farmer {
   });
 
   // Factory constructor from Firestore DocumentSnapshot (farms can be passed in)
-  factory Farmer.fromSnapshot(DocumentSnapshot doc,
-      {List<Farm> farms = const []}) {
+  factory Farmer.fromSnapshot(
+      {required DocumentSnapshot doc, List<Farm> farms = const []}) {
+    if (!doc.exists) {
+      return Farmer(
+        id: doc.id,
+        name: 'John',
+        surname: 'Doe',
+        email: 'john@doe.com',
+        phone: '0000000000',
+        location: NOWHERE,
+        farms: [],
+      );
+    }
+
     final data = doc.data() as Map<String, dynamic>;
     return Farmer(
       id: doc.id,
@@ -33,7 +43,7 @@ class Farmer {
       surname: data['surname'] ?? 'Doe',
       email: data['email'] ?? 'john@doe.com',
       phone: data['phone'] ?? '0000000000',
-      location: data['location'] ?? nowhere,
+      location: data['location'] ?? NOWHERE,
       farms: farms,
     );
   }
@@ -65,7 +75,7 @@ class Farm {
     return Farm(
       id: doc.id,
       name: data['name'] ?? UNKNOWN,
-      location: data['location'] ?? nowhere,
+      location: data['location'] ?? NOWHERE,
       type: data['type'] ?? UNKNOWN,
       size: data['size'] ?? 0,
       camps: camps,
@@ -93,7 +103,7 @@ class Camp {
     return Camp(
       id: doc.id,
       name: data['name'] ?? UNKNOWN,
-      location: data['location'] ?? nowhere,
+      location: data['location'] ?? NOWHERE,
       size: data['size'] ?? 0,
     );
   }

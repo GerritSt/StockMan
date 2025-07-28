@@ -4,10 +4,7 @@ import 'package:stockman/src/Pages/Changeslog/changeslog_page.dart';
 import 'package:stockman/src/Pages/Home/home_page.dart';
 import 'package:stockman/src/Pages/Profile/profile_page.dart';
 import 'package:stockman/src/Pages/Statistics/statistics_page.dart';
-import 'package:stockman/src/models/cattle_profile.dart';
-import 'package:stockman/src/models/farmer_profile.dart';
-import 'package:stockman/src/providers/cattle_db_service.dart';
-import 'package:stockman/src/providers/farmer_db_service.dart';
+import 'package:stockman/src/models/full_farmer_model.dart';
 import 'package:stockman/src/widgets/navigation_bar.dart';
 
 const String defaultFarmID = 'farm_001';
@@ -28,22 +25,19 @@ class MainPage extends StatefulWidget {
 class _MainPageState extends State<MainPage> {
   int _selectedIndex = 0;
   final PageController _pageController = PageController();
-  // Database services
-  final FarmerDbService _farmerDBService = FarmerDbService();
-  final CattleDbService _cattleDBService = CattleDbService();
-  // Futures used as variables
-  late Future<Farmer> _farmerFuture;
-  late Future<List<Cattle>> _cattleDataFuture;
+
+  // This is the full model
+  late FullFarmerModel _farmerModel;
 
   @override
   void initState() {
     super.initState();
-    // Get all of the information of the Farmer from firebase
-    _cattleDataFuture = _cattleDBService.getCattle(
-      farmerId: widget.farmerUID,
-      farmId: widget.farmID,
-      campId: widget.campID,
-    );
+    _farmerModel = FullFarmerModel(uid: widget.farmerUID);
+    _farmerModel.initialize().then((_) {
+      setState(() {
+        // Data is loaded, you can now use _farmerModel.getFarmsMap(), etc.
+      });
+    });
   }
 
   void _onItemTapped(int index) {
@@ -65,11 +59,7 @@ class _MainPageState extends State<MainPage> {
 
   void _refreshCattleData() {
     setState(() {
-      _cattleDataFuture = _cattleDBService.getCattle(
-        farmerId: widget.farmerUID,
-        farmId: widget.farmID,
-        campId: widget.campID,
-      );
+      _farmerModel.refreshCattle();
     });
   }
 
@@ -84,7 +74,7 @@ class _MainPageState extends State<MainPage> {
             farmerId: widget.farmerUID,
             farmId: widget.farmID,
             campId: widget.campID,
-            cattleDataFuture: _cattleDataFuture,
+            cattleDataFuture: _farmerModel.getCattle(),
             refreshCattleData: _refreshCattleData,
           ),
           ActivitiesPage(),

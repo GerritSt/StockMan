@@ -13,7 +13,12 @@ class AddCattlePage extends StatefulWidget {
   final String farmId;
   final String campId;
   final VoidCallback refreshCattleData;
-  const AddCattlePage({super.key, required this.farmerId, required this.farmId, required this.campId, required this.refreshCattleData});
+  const AddCattlePage(
+      {super.key,
+      required this.farmerId,
+      required this.farmId,
+      required this.campId,
+      required this.refreshCattleData});
 
   @override
   // ignore: library_private_types_in_public_api
@@ -376,8 +381,7 @@ class _AddCattlePageState extends State<AddCattlePage> {
                                     _weight.remove(entry.key);
                                   });
                                 },
-                                title: Text(
-                                    '${entry.key}: ${entry.value} kg'),
+                                title: Text('${entry.key}: ${entry.value} kg'),
                                 contentPadding:
                                     EdgeInsets.symmetric(horizontal: 8.0),
                                 shape: RoundedRectangleBorder(
@@ -475,11 +479,16 @@ class _AddCattlePageState extends State<AddCattlePage> {
                           _formKey.currentState!.save();
                           // Generate deterministic cattle ID
                           final birthDate = _cattleData['birthdate'] is String
-                              ? DateTime.tryParse(_cattleData['birthdate']) ?? DateTime(1950, 1, 1)
+                              ? DateTime.tryParse(_cattleData['birthdate']) ??
+                                  DateTime(1950, 1, 1)
                               : DateTime(1950, 1, 1);
                           final sex = _cattleData['sex'] ?? '';
-                          final rand = (1000 + (DateTime.now().millisecondsSinceEpoch % 9000)).toString();
-                          final dateStr = " {birthDate.year.toString().padLeft(4, '0')} {birthDate.month.toString().padLeft(2, '0')} {birthDate.day.toString().padLeft(2, '0')}";
+                          final rand = (1000 +
+                                  (DateTime.now().millisecondsSinceEpoch %
+                                      9000))
+                              .toString();
+                          final dateStr =
+                              " {birthDate.year.toString().padLeft(4, '0')} {birthDate.month.toString().padLeft(2, '0')} {birthDate.day.toString().padLeft(2, '0')}";
                           final cattleId = "${dateStr}_${sex}_$rand";
                           // Convert form data to Cattle object
                           final cattle = Cattle(
@@ -490,8 +499,10 @@ class _AddCattlePageState extends State<AddCattlePage> {
                             sex: sex,
                             breed: Map<String, double>.from(_breed),
                             weight: Map<String, dynamic>.from(_weight),
-                            farm: <String, GeoPoint>{}, // Placeholder, update as needed
-                            camp: <String, GeoPoint>{}, // Placeholder, update as needed
+                            farm: <DateTime,
+                                String>{}, // Placeholder, update as needed
+                            camp: <DateTime,
+                                String>{}, // Placeholder, update as needed
                           );
                           await _dbService.addCattle(
                             farmerId: widget.farmerId,

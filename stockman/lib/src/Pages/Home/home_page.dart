@@ -16,7 +16,7 @@ class HomePage extends StatefulWidget {
     required this.refreshCattleData,
   });
 
-  final Future<List<Cattle>> cattleDataFuture;
+  final Future<Map<String, Cattle>> cattleDataFuture;
   final VoidCallback refreshCattleData;
 
   @override
@@ -28,6 +28,8 @@ class _HomePageState extends State<HomePage> {
   final Set<Cattle> _selectedCattle = {};
   // if true selection mode is enabled
   bool _selectionMode = false;
+  // Dedicated ScrollController for ListView and Scrollbar
+  final ScrollController _scrollController = ScrollController();
 
   void _toggleSelection(Cattle cattleEntry) {
     setState(() {
@@ -41,6 +43,12 @@ class _HomePageState extends State<HomePage> {
         _selectionMode = true;
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   void _deleteSelectedCattle() {
@@ -68,7 +76,7 @@ class _HomePageState extends State<HomePage> {
           IconButton(onPressed: () {}, icon: const Icon(Icons.search)),
         ],
       ),
-      body: FutureBuilder<List<Cattle>>(
+      body: FutureBuilder<Map<String, Cattle>>(
           future: widget.cattleDataFuture,
           builder: (context, snapshot) {
             // Handle loading state
@@ -81,19 +89,23 @@ class _HomePageState extends State<HomePage> {
             }
             // If data is available
             if (snapshot.hasData && snapshot.data != null) {
-              final cattle = snapshot.data!; // List of cattle documents
+              final cattleMap = snapshot.data!;
+              final cattleList = cattleMap.values.toList();
+              print('cattleMap: ' + cattleMap.toString());
 
-              if (cattle.isEmpty) {
+              if (cattleList.isEmpty) {
                 return const Center(child: Text('No cattle found!'));
               }
               // if not empty:
               return Scrollbar(
+                controller: _scrollController,
                 thumbVisibility: true,
                 trackVisibility: true,
                 child: ListView.builder(
-                  itemCount: cattle.length,
+                  controller: _scrollController,
+                  itemCount: cattleList.length,
                   itemBuilder: (context, index) {
-                    final listEntry = cattle[index];
+                    final listEntry = cattleList[index];
                     return ListEntryFormat(
                       cattleEntry: listEntry,
                       isSelected: _selectedCattle.contains(listEntry),
