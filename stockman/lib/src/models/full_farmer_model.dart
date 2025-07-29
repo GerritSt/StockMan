@@ -79,12 +79,12 @@ class FullFarmerModel {
   // Get cattle now returns a Future<Map<String, Cattle>>
   Future<Map<String, Cattle>> _getCattle() async {
     Map<String, Cattle> cattleMap = {};
-    dlog('Now gettting the cattle from the full farmer model');
+    // dlog('Now gettting the cattle from the full farmer model');
     // dlog(farms.toString());
     for (var farm in farms.values) {
-      dlog("Farm: ${farm.id}");
+      // dlog("Farm: ${farm.id}");
       for (var camp in camps.values) {
-        dlog('Camp: ${camp.id}');
+        // dlog('Camp: ${camp.id}');
         List<Cattle> cattleList = await _cattleDbService.getCattle(
           farmerId: uid,
           farmId: farm.id,

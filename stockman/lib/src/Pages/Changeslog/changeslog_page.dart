@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:stockman/src/config/constants.dart';
 
 class ChangeslogPage extends StatefulWidget {
   const ChangeslogPage({super.key});
@@ -10,6 +11,8 @@ class ChangeslogPage extends StatefulWidget {
 class _ChangeslogPageState extends State<ChangeslogPage> {
   @override
   Widget build(BuildContext context) {
-    return const Placeholder();
+    return Center(
+      child: Text(COMINGSOON),
+    );
   }
 }

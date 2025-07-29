@@ -4,6 +4,7 @@ import 'package:stockman/src/Pages/Changeslog/changeslog_page.dart';
 import 'package:stockman/src/Pages/Home/home_page.dart';
 import 'package:stockman/src/Pages/Profile/profile_page.dart';
 import 'package:stockman/src/Pages/Statistics/statistics_page.dart';
+import 'package:stockman/src/models/cattle_profile.dart';
 import 'package:stockman/src/models/full_farmer_model.dart';
 import 'package:stockman/src/widgets/navigation_bar.dart';
 
@@ -28,16 +29,14 @@ class _MainPageState extends State<MainPage> {
 
   // This is the full model
   late FullFarmerModel _farmerModel;
+  late final Future<void> _initializationFuture;
 
   @override
   void initState() {
     super.initState();
     _farmerModel = FullFarmerModel(uid: widget.farmerUID);
-    _farmerModel.initialize().then((_) {
-      setState(() {
-        // Data is loaded, you can now use _farmerModel.getFarmsMap(), etc.
-      });
-    });
+    // Store the future so it's only created once
+    _initializationFuture = _farmerModel.initialize();
   }
 
   void _onItemTapped(int index) {
@@ -70,12 +69,23 @@ class _MainPageState extends State<MainPage> {
         controller: _pageController,
         onPageChanged: _onPageChanged,
         children: [
-          HomePage(
-            farmerId: widget.farmerUID,
-            farmId: widget.farmID,
-            campId: widget.campID,
-            cattleDataFuture: _farmerModel.getCattle(),
-            refreshCattleData: _refreshCattleData,
+          FutureBuilder<void>(
+            future: _initializationFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (snapshot.hasError) {
+                return Center(child: Text('Error: ${snapshot.error}'));
+              }
+              return HomePage(
+                farmerId: widget.farmerUID,
+                farmId: widget.farmID,
+                campId: widget.campID,
+                cattleDataFuture: _farmerModel.getCattle(),
+                refreshCattleData: _refreshCattleData,
+              );
+            },
           ),
           ActivitiesPage(),
           const ChangeslogPage(),

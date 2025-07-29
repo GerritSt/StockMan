@@ -4,7 +4,6 @@ import 'package:stockman/src/config/text_theme.dart';
 import 'package:stockman/src/providers/cattle_db_service.dart';
 import 'package:stockman/src/models/cattle_profile.dart';
 import 'package:numberpicker/numberpicker.dart'; // Add this line
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 enum Status { active, sold, dead }
 

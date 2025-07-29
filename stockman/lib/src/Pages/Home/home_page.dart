@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:stockman/src/Pages/Home/add_cattle_page.dart';
+import 'package:stockman/src/config/constants.dart';
 import 'package:stockman/src/config/text_theme.dart';
 import 'package:stockman/src/models/cattle_profile.dart';
 
@@ -76,32 +77,38 @@ class _HomePageState extends State<HomePage> {
           IconButton(onPressed: () {}, icon: const Icon(Icons.search)),
         ],
       ),
-      body: FutureBuilder<Map<String, Cattle>>(
+      body: RefreshIndicator(
+        onRefresh: () async {
+          widget.refreshCattleData();
+          setState(() {});
+        },
+        child: FutureBuilder<Map<String, Cattle>>(
           future: widget.cattleDataFuture,
           builder: (context, snapshot) {
-            // Handle loading state
-            if (snapshot.connectionState == ConnectionState.waiting) {
+            if (snapshot.connectionState == ConnectionState.waiting ||
+                snapshot.connectionState == ConnectionState.active) {
               return const Center(child: CircularProgressIndicator());
             }
-            // Handle error state
             if (snapshot.hasError) {
               return Center(child: Text('Error: ${snapshot.error}'));
             }
-            // If data is available
-            if (snapshot.hasData && snapshot.data != null) {
-              final cattleMap = snapshot.data!;
-              final cattleList = cattleMap.values.toList();
-              print('cattleMap: ' + cattleMap.toString());
-
-              if (cattleList.isEmpty) {
+            if (snapshot.connectionState == ConnectionState.done) {
+              dlog(
+                  'Connection is done, get cattle from snapshot.data: ${snapshot.data}');
+              final cattleMap = snapshot.data;
+              // First check if data exists or is empty
+              if (cattleMap == null || cattleMap.isEmpty) {
+                dlog('cattleMap is null or empty: ${cattleMap.toString()}');
                 return const Center(child: Text('No cattle found!'));
               }
-              // if not empty:
+              final cattleList = cattleMap.values.toList();
+              // Show the list
               return Scrollbar(
                 controller: _scrollController,
                 thumbVisibility: true,
                 trackVisibility: true,
                 child: ListView.builder(
+                  physics: const AlwaysScrollableScrollPhysics(),
                   controller: _scrollController,
                   itemCount: cattleList.length,
                   itemBuilder: (context, index) {
@@ -116,8 +123,11 @@ class _HomePageState extends State<HomePage> {
                 ),
               );
             }
-            return const Center(child: Text('An error occured'));
-          }),
+            return const Center(child: Text('An error occurred'));
+          },
+        ),
+      ),
+      // Add cattle button
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           Navigator.push(
@@ -186,7 +196,7 @@ class ListEntryFormat extends StatelessWidget {
           if (selectionMode) {
             onSelected(cattleEntry);
           } else {
-            print('Tile tapped!');
+            dlog('Tile tapped!');
           }
         },
         onLongPress: () => onSelected(cattleEntry),
