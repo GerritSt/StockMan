@@ -49,7 +49,7 @@ class _AddCattlePageState extends State<AddCattlePage> {
     );
     if (pickedDate != null) {
       _dateController.text = pickedDate.toString().split(" ")[0];
-      _cattleData['birthdate'] = pickedDate.toIso8601String();
+      _cattleData['dateOfBirth'] = pickedDate.toIso8601String();
     }
   }
 
@@ -336,15 +336,15 @@ class _AddCattlePageState extends State<AddCattlePage> {
                   ],
                 ),
                 SizedBox(height: 10),
-                // birthdate
+                // dateOfBirth
                 TextFormField(
                   controller: _dateController,
-                  decoration: _inputDecoration('Birthdate', ''),
+                  decoration: _inputDecoration('dateOfBirth', ''),
                   readOnly: true,
                   onSaved: (value) {
-                    _cattleData['birthdate'] = value;
+                    _cattleData['dateOfBirth'] = value;
                   },
-                  onTap: () => _selectDate(context, 'birthdate'),
+                  onTap: () => _selectDate(context, 'dateOfBirth'),
                 ),
                 SizedBox(height: 10),
                 // weight
@@ -477,8 +477,9 @@ class _AddCattlePageState extends State<AddCattlePage> {
                         if (_formKey.currentState!.validate()) {
                           _formKey.currentState!.save();
                           // Generate deterministic cattle ID
-                          final birthDate = _cattleData['birthdate'] is String
-                              ? DateTime.tryParse(_cattleData['birthdate']) ??
+                          final dateOfBirth = _cattleData['dateOfBirth']
+                                  is String
+                              ? DateTime.tryParse(_cattleData['dateOfBirth']) ??
                                   DateTime(1950, 1, 1)
                               : DateTime(1950, 1, 1);
                           final sex = _cattleData['sex'] ?? '';
@@ -487,20 +488,19 @@ class _AddCattlePageState extends State<AddCattlePage> {
                                       9000))
                               .toString();
                           final dateStr =
-                              " {birthDate.year.toString().padLeft(4, '0')} {birthDate.month.toString().padLeft(2, '0')} {birthDate.day.toString().padLeft(2, '0')}";
+                              " ${dateOfBirth.year.toString().padLeft(4, '0')} ${dateOfBirth.month.toString().padLeft(2, '0')} ${dateOfBirth.day.toString().padLeft(2, '0')}";
                           final cattleId = "${dateStr}_${sex}_$rand";
                           // Convert form data to Cattle object
                           final cattle = Cattle(
                             id: cattleId,
-                            tag: _cattleData['tag'] ?? '',
-                            birthDate: birthDate,
+                            dateOfBirth: dateOfBirth,
                             group: _cattleData['group'] ?? 0,
                             sex: sex,
                             breed: Map<String, double>.from(_breed),
                             weight: Map<String, dynamic>.from(_weight),
-                            farm: <DateTime,
+                            farms: <DateTime,
                                 String>{}, // Placeholder, update as needed
-                            camp: <DateTime,
+                            camps: <DateTime,
                                 String>{}, // Placeholder, update as needed
                           );
                           await _dbService.addCattle(
@@ -508,7 +508,6 @@ class _AddCattlePageState extends State<AddCattlePage> {
                             farmId: widget.farmId,
                             campId: widget.campId,
                             cattle: cattle,
-                            cattleId: cattleId,
                           );
                           widget.refreshCattleData();
                           Navigator.of(context).pop();

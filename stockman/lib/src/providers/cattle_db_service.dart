@@ -28,8 +28,17 @@ class CattleDbService {
     required String farmId,
     required String campId,
     required Cattle cattle,
-    required String cattleId,
   }) async {
+    // Generate deterministic cattle ID
+    final dateOfBirth = cattle.dateOfBirth;
+    final sex = cattle.sex;
+    final rand =
+        (1000 + (DateTime.now().millisecondsSinceEpoch % 9000)).toString();
+    final dateStr =
+        " ${dateOfBirth.year.toString().padLeft(4, '0')}${dateOfBirth.month.toString().padLeft(2, '0')}${dateOfBirth.day.toString().padLeft(2, '0')}";
+    final newcattleId = "${dateStr}_${sex}_$rand";
+
+    // Add the new cattle to firebase
     await _db
         .collection('farmers')
         .doc(farmerId)
@@ -38,7 +47,7 @@ class CattleDbService {
         .collection('camps')
         .doc(campId)
         .collection('cattle')
-        .doc(cattleId)
+        .doc(newcattleId)
         .set(cattle.toMap());
   }
 }

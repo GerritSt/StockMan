@@ -93,8 +93,7 @@ class _HomePageState extends State<HomePage> {
               return Center(child: Text('Error: ${snapshot.error}'));
             }
             if (snapshot.connectionState == ConnectionState.done) {
-              dlog(
-                  'Connection is done, get cattle from snapshot.data: ${snapshot.data}');
+              // dlog('Connection is done, get cattle from snapshot.data: ${snapshot.data}');
               final cattleMap = snapshot.data;
               // First check if data exists or is empty
               if (cattleMap == null || cattleMap.isEmpty) {
@@ -152,8 +151,7 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
-// this is the format of each entry in the list(this is the card and everything
-// in it)
+// this is the format of each entry in the list(this is the card and everything in it)
 class ListEntryFormat extends StatelessWidget {
   const ListEntryFormat({
     super.key,
@@ -175,7 +173,7 @@ class ListEntryFormat extends StatelessWidget {
       margin: EdgeInsets.only(left: 7, right: 7, top: 5),
       child: ListTile(
         title: Row(
-          children: [Text(cattleEntry.tag)],
+          children: [Text(cattleEntry.id)],
         ),
         subtitle: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
