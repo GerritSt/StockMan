@@ -3,6 +3,7 @@ import 'package:stockman/src/Pages/Home/add_cattle_page.dart';
 import 'package:stockman/src/config/constants.dart';
 import 'package:stockman/src/config/text_theme.dart';
 import 'package:stockman/src/models/cattle_profile.dart';
+import 'package:stockman/src/providers/cattle_db_service.dart';
 
 class HomePage extends StatefulWidget {
   final String farmerId;
@@ -31,6 +32,7 @@ class _HomePageState extends State<HomePage> {
   bool _selectionMode = false;
   // Dedicated ScrollController for ListView and Scrollbar
   final ScrollController _scrollController = ScrollController();
+  final CattleDbService _cattleDbService = CattleDbService();
 
   void _toggleSelection(Cattle cattleEntry) {
     setState(() {
@@ -52,12 +54,54 @@ class _HomePageState extends State<HomePage> {
     super.dispose();
   }
 
-  void _deleteSelectedCattle() {
-    // Implement the deletion logic here
-    setState(() {
-      _selectedCattle.clear();
-      _selectionMode = false;
-    });
+  // Delete selected cattle
+  // Firstly show popup asking if user is sure
+  void _deleteSelectedCattle() async {
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Delete Cattle'),
+          content: Text(
+            'Are you sure you want to delete ${_selectedCattle.length} selected cattle?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldDelete == true) {
+      await _performDeletion();
+      setState(() {
+        _selectedCattle.clear();
+        _selectionMode = false;
+      });
+      widget.refreshCattleData(); // Refresh data from Firestore or wherever
+    }
+  }
+
+  Future<void> _performDeletion() async {
+    for (final cattle in _selectedCattle) {
+      try {
+        _cattleDbService.deleteCattle(
+          farmerId: widget.farmerId,
+          farmId: widget.farmId,
+          campId: widget.campId,
+          cattleId: cattle.id,
+        );
+      } catch (e) {
+        dlog('Failed to delete cattle ${cattle.id}: $e');
+      }
+    }
   }
 
   @override
@@ -82,6 +126,7 @@ class _HomePageState extends State<HomePage> {
           widget.refreshCattleData();
           setState(() {});
         },
+        // List of all the cattle
         child: FutureBuilder<Map<String, Cattle>>(
           future: widget.cattleDataFuture,
           builder: (context, snapshot) {
@@ -173,7 +218,9 @@ class ListEntryFormat extends StatelessWidget {
       margin: EdgeInsets.only(left: 7, right: 7, top: 5),
       child: ListTile(
         title: Row(
-          children: [Text(cattleEntry.id)],
+          children: [
+            Text(cattleEntry.id),
+          ],
         ),
         subtitle: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,

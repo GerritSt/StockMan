@@ -483,13 +483,13 @@ class _AddCattlePageState extends State<AddCattlePage> {
                                   DateTime(1950, 1, 1)
                               : DateTime(1950, 1, 1);
                           final sex = _cattleData['sex'] ?? '';
-                          final rand = (1000 +
-                                  (DateTime.now().millisecondsSinceEpoch %
-                                      9000))
-                              .toString();
-                          final dateStr =
-                              " ${dateOfBirth.year.toString().padLeft(4, '0')} ${dateOfBirth.month.toString().padLeft(2, '0')} ${dateOfBirth.day.toString().padLeft(2, '0')}";
-                          final cattleId = "${dateStr}_${sex}_$rand";
+                          // final rand = (1000 +
+                          //         (DateTime.now().millisecondsSinceEpoch %
+                          //             9000))
+                          //     .toString();
+                          // final dateStr =
+                          //     "${dateOfBirth.year.toString().padLeft(4, '0')}${dateOfBirth.month.toString().padLeft(2, '0')}${dateOfBirth.day.toString().padLeft(2, '0')}";
+                          final cattleId = _cattleData['tag'];
                           // Convert form data to Cattle object
                           final cattle = Cattle(
                             id: cattleId,
@@ -508,6 +508,7 @@ class _AddCattlePageState extends State<AddCattlePage> {
                             farmId: widget.farmId,
                             campId: widget.campId,
                             cattle: cattle,
+                            cattleId: cattleId,
                           );
                           widget.refreshCattleData();
                           Navigator.of(context).pop();

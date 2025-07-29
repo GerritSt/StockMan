@@ -23,21 +23,12 @@ class CattleDbService {
   }
 
   // Add a cattle entry to a specific camp
-  Future<void> addCattle({
-    required String farmerId,
-    required String farmId,
-    required String campId,
-    required Cattle cattle,
-  }) async {
-    // Generate deterministic cattle ID
-    final dateOfBirth = cattle.dateOfBirth;
-    final sex = cattle.sex;
-    final rand =
-        (1000 + (DateTime.now().millisecondsSinceEpoch % 9000)).toString();
-    final dateStr =
-        " ${dateOfBirth.year.toString().padLeft(4, '0')}${dateOfBirth.month.toString().padLeft(2, '0')}${dateOfBirth.day.toString().padLeft(2, '0')}";
-    final newcattleId = "${dateStr}_${sex}_$rand";
-
+  Future<void> addCattle(
+      {required String farmerId,
+      required String farmId,
+      required String campId,
+      required Cattle cattle,
+      required String cattleId}) async {
     // Add the new cattle to firebase
     await _db
         .collection('farmers')
@@ -47,7 +38,26 @@ class CattleDbService {
         .collection('camps')
         .doc(campId)
         .collection('cattle')
-        .doc(newcattleId)
+        .doc(cattleId)
         .set(cattle.toMap());
+  }
+
+  // Delete a cattle
+  Future<void> deleteCattle({
+    required String farmerId,
+    required String farmId,
+    required String campId,
+    required String cattleId,
+  }) async {
+    await _db
+        .collection('farmers')
+        .doc(farmerId)
+        .collection('farms')
+        .doc(farmId)
+        .collection('camps')
+        .doc(campId)
+        .collection('cattle')
+        .doc(cattleId)
+        .delete();
   }
 }
