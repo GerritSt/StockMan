@@ -1,17 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:stockman/src/Pages/main_page.dart';
 import 'package:stockman/src/config/app_theme.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:stockman/src/config/supabase_config.dart';
 import 'src/Pages/Login/login_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
+
+  await Supabase.initialize(
+    url: SupabaseConfig.supabaseUrl,
+    anonKey: SupabaseConfig.supabaseAnonKey,
+    authOptions: const FlutterAuthClientOptions(
+      authFlowType: AuthFlowType.pkce,
+    ),
   );
-  await FirebaseAuth.instance.signOut(); // Always sign out on app start
+
   runApp(const StockMan());
 }
 
@@ -24,22 +28,56 @@ class StockMan extends StatelessWidget {
     return MaterialApp(
       title: 'StockMan',
       theme: AppTheme.lightTheme,
-      home: StreamBuilder<User?>(
-        stream: FirebaseAuth.instance.authStateChanges(),
+      home: StreamBuilder<AuthState>(
+        stream: Supabase.instance.client.auth.onAuthStateChange,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-          if (snapshot.hasData) {
-            final user = snapshot.data!;
-            // The user is now signed in through the firebase authentication
-            // Send the UID through to MainPage
-            return MainPage(farmerUID: user.uid);
+
+          final session = snapshot.hasData ? snapshot.data!.session : null;
+
+          if (session != null) {
+            // Verify the session is still valid by checking if user exists
+            return FutureBuilder(
+              future: _verifySession(session),
+              builder: (context, verifySnapshot) {
+                if (verifySnapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (verifySnapshot.data == true) {
+                  // Valid session - user exists
+                  return MainPage(farmerUID: session.user.id);
+                } else {
+                  // Invalid session - user was deleted or session expired
+                  return const LoginPage();
+                }
+              },
+            );
           } else {
             return const LoginPage();
           }
         },
       ),
     );
+  }
+
+  // Verify if the session is still valid
+  Future<bool> _verifySession(Session session) async {
+    try {
+      // Try to get the current user - this will fail if user was deleted
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) {
+        await Supabase.instance.client.auth.signOut();
+        return false;
+      }
+      // You could also make an API call here to verify the user exists in your database
+      return true;
+    } catch (e) {
+      // If there's an error, sign out and return false
+      await Supabase.instance.client.auth.signOut();
+      return false;
+    }
   }
 }

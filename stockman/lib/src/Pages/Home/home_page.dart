@@ -92,10 +92,7 @@ class _HomePageState extends State<HomePage> {
   Future<void> _performDeletion() async {
     for (final cattle in _selectedCattle) {
       try {
-        _cattleDbService.deleteCattle(
-          farmerId: widget.farmerId,
-          farmId: widget.farmId,
-          campId: widget.campId,
+        await _cattleDbService.deleteCattle(
           cattleId: cattle.id,
         );
       } catch (e) {
@@ -219,14 +216,30 @@ class ListEntryFormat extends StatelessWidget {
       child: ListTile(
         title: Row(
           children: [
-            Text(cattleEntry.id),
+            Text(cattleEntry.tagNumber),
+            if (cattleEntry.tagColour != null) ...[
+              SizedBox(width: 8),
+              Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: _getColorFromString(cattleEntry.tagColour!),
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ],
           ],
         ),
         subtitle: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(cattleEntry.sex),
-            Text(cattleEntry.weight.toString()),
+            // Show status instead of sex
+            Text(cattleEntry.status),
+            // Show birth date or group name instead of weight
+            Text(cattleEntry.groupName ??
+                (cattleEntry.birthDate != null
+                    ? 'Born: ${cattleEntry.birthDate!.year}'
+                    : 'No info')),
           ],
         ),
         leading: Icon(Icons.pets),
@@ -248,5 +261,21 @@ class ListEntryFormat extends StatelessWidget {
         selected: isSelected,
       ),
     );
+  }
+
+  // Helper method to convert color string to Color
+  Color _getColorFromString(String colorName) {
+    switch (colorName.toLowerCase()) {
+      case 'red':
+        return Colors.red;
+      case 'yellow':
+        return Colors.yellow;
+      case 'blue':
+        return Colors.blue;
+      case 'green':
+        return Colors.green;
+      default:
+        return Colors.grey;
+    }
   }
 }

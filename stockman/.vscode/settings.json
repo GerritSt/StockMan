@@ -1,4 +1,8 @@
 {
-    "java.compile.nullAnalysis.mode": "automatic",
-    "java.configuration.updateBuildConfiguration": "automatic"
+  "java.compile.nullAnalysis.mode": "automatic",
+  "java.configuration.updateBuildConfiguration": "automatic",
+  "files.exclude": {
+    "**/android/build.gradle": false
+  },
+  "java.import.gradle.enabled": false
 }

@@ -3,83 +3,110 @@ import 'package:stockman/src/config/app_theme.dart';
 import 'package:stockman/src/config/text_theme.dart';
 import 'package:stockman/src/providers/cattle_db_service.dart';
 import 'package:stockman/src/models/cattle_profile.dart';
-import 'package:numberpicker/numberpicker.dart'; // Add this line
-
-enum Status { active, sold, dead }
+import 'package:stockman/src/config/constants.dart';
 
 class AddCattlePage extends StatefulWidget {
   final String farmerId;
   final String farmId;
   final String campId;
   final VoidCallback refreshCattleData;
-  const AddCattlePage(
-      {super.key,
-      required this.farmerId,
-      required this.farmId,
-      required this.campId,
-      required this.refreshCattleData});
+
+  const AddCattlePage({
+    super.key,
+    required this.farmerId,
+    required this.farmId,
+    required this.campId,
+    required this.refreshCattleData,
+  });
 
   @override
-  // ignore: library_private_types_in_public_api
   _AddCattlePageState createState() => _AddCattlePageState();
 }
 
 class _AddCattlePageState extends State<AddCattlePage> {
   final CattleDbService _dbService = CattleDbService();
   final _formKey = GlobalKey<FormState>();
-  final Map<String, dynamic> _cattleData = {};
-  final Map<String, dynamic> _breed = {};
-  final TextEditingController _dateController = TextEditingController();
-  final _percentageController = TextEditingController();
-  Status _status = Status.active;
-  final Map<String, double> _weight = {}; // Change DateTime to String
-  int _group = 1; // Add this line
+  final TextEditingController _tagNumberController = TextEditingController();
+  final TextEditingController _birthDateController = TextEditingController();
+  final TextEditingController _noteController = TextEditingController();
 
-  // TODO: Replace these with actual logic to get the current user's IDs
-  // final String farmerId = 'demoFarmerId';
-  // final String farmId = 'demoFarmId';
-  // final String campId = 'demoCampId';
+  String? _selectedTagColor;
+  String? _selectedSex;
+  String _selectedStatus = 'alive';
+  final Map<String, double> _breed = {};
+  DateTime? _birthDate;
+  String _groupName = 'Group 1';
+  bool _isLoading = false;
 
-  Future<void> _selectDate(BuildContext context, String key) async {
-    DateTime? pickedDate = await showDatePicker(
+  @override
+  void dispose() {
+    _tagNumberController.dispose();
+    _birthDateController.dispose();
+    _noteController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _selectBirthDate() async {
+    final DateTime? pickedDate = await showDatePicker(
       context: context,
       initialDate: DateTime.now(),
       firstDate: DateTime(1950),
       lastDate: DateTime.now(),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: darkGreen,
+              onPrimary: Colors.white,
+              surface: Colors.white,
+              onSurface: Colors.black,
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
     if (pickedDate != null) {
-      _dateController.text = pickedDate.toString().split(" ")[0];
-      _cattleData['dateOfBirth'] = pickedDate.toIso8601String();
+      setState(() {
+        _birthDate = pickedDate;
+        _birthDateController.text = pickedDate.toString().split(" ")[0];
+      });
     }
   }
 
-  // breed map => {breed1:{angus: 50}, breed2:{charolais: 50}}
-  Future<void> _showBreedPercentageDialog(BuildContext context) async {
+  Future<void> _showBreedDialog() async {
     final breedFormKey = GlobalKey<FormState>();
-    String? breedVar = '';
+    String? selectedBreed;
+    final percentageController = TextEditingController();
 
-    return showDialog<void>(
+    await showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('Add Breed Percentage'),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Add Breed',
+              style: TextStyle(fontWeight: FontWeight.bold)),
           content: Form(
             key: breedFormKey,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 DropdownButtonFormField<String>(
-                  decoration: InputDecoration(labelText: 'Breed'),
-                  items: cattleBreeds.map((label) {
+                  decoration: InputDecoration(
+                    labelText: 'Select Breed',
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                    prefixIcon: const Icon(Icons.pets),
+                  ),
+                  items: cattleBreeds.map((breed) {
                     return DropdownMenuItem<String>(
-                      value: label,
-                      child: Text(label),
+                      value: breed,
+                      child: Text(breed),
                     );
                   }).toList(),
                   onChanged: (value) {
-                    setState(() {
-                      breedVar = value;
-                    });
+                    selectedBreed = value;
                   },
                   validator: (value) {
                     if (value == null || value.isEmpty) {
@@ -88,16 +115,27 @@ class _AddCattlePageState extends State<AddCattlePage> {
                     return null;
                   },
                 ),
+                const SizedBox(height: 16),
                 TextFormField(
-                  controller: _percentageController,
-                  decoration: InputDecoration(labelText: 'Percentage'),
+                  controller: percentageController,
+                  decoration: InputDecoration(
+                    labelText: 'Percentage (%)',
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                    prefixIcon: const Icon(Icons.percent),
+                  ),
                   keyboardType: TextInputType.number,
                   validator: (value) {
                     final percentage = double.tryParse(value ?? '');
                     if (percentage == null ||
-                        percentage < 1 ||
+                        percentage <= 0 ||
                         percentage > 100) {
-                      return 'Percentage between 0 and 100';
+                      return 'Enter a value between 1 and 100';
+                    }
+                    final currentTotal =
+                        _breed.values.fold<double>(0, (sum, val) => sum + val);
+                    if (currentTotal + percentage > 100) {
+                      return 'Total exceeds 100% (current: ${currentTotal.toStringAsFixed(0)}%)';
                     }
                     return null;
                   },
@@ -105,27 +143,26 @@ class _AddCattlePageState extends State<AddCattlePage> {
               ],
             ),
           ),
-          actions: <Widget>[
+          actions: [
             TextButton(
-              child: Text('Cancel'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
             ),
             ElevatedButton(
-              child: Text('Add'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: darkGreen,
+                foregroundColor: Colors.white,
+              ),
               onPressed: () {
                 if (breedFormKey.currentState!.validate()) {
-                  final percentage =
-                      double.tryParse(_percentageController.text) ?? 0.0;
-                  if (breedVar!.isNotEmpty && percentage > 0) {
-                    setState(() {
-                      _breed[breedVar!] = percentage;
-                    });
-                    Navigator.of(context).pop();
-                  }
+                  final percentage = double.parse(percentageController.text);
+                  setState(() {
+                    _breed[selectedBreed!] = percentage;
+                  });
+                  Navigator.of(context).pop();
                 }
               },
+              child: const Text('Add'),
             ),
           ],
         );
@@ -133,421 +170,509 @@ class _AddCattlePageState extends State<AddCattlePage> {
     );
   }
 
-  // weight map => {weight1:{2021-09-01, 100.0}, weight2:{2021-09-02, 101.0}}
-  Future<void> _showDateWeightDialog(BuildContext context) async {
-    final weightFormKey = GlobalKey<FormState>();
-    String? dateVar;
-    double? weightVar = 0.0;
-    _dateController.clear();
+  Future<void> _saveCattle() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
 
-    return showDialog<void>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('Add Weight Log'),
-          content: Form(
-            key: weightFormKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: _dateController,
-                  decoration: InputDecoration(labelText: 'Date'),
-                  readOnly: true,
-                  onTap: () async {
-                    DateTime? pickedDate = await showDatePicker(
-                      context: context,
-                      initialDate: DateTime.now(),
-                      firstDate: DateTime(1950),
-                      lastDate: DateTime.now(),
-                    );
-                    if (pickedDate != null) {
-                      setState(() {
-                        dateVar = pickedDate.toString().split(" ")[0];
-                        _dateController.text = dateVar!;
-                      });
-                    }
-                  },
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please select a date';
-                    }
-                    return null;
-                  },
-                ),
-                TextFormField(
-                  decoration: InputDecoration(labelText: 'Weight'),
-                  keyboardType: TextInputType.number,
-                  validator: (value) {
-                    final weight = double.tryParse(value ?? '');
-                    if (weight == null || weight <= 0 || weight > 1000) {
-                      return 'Please enter a valid weight';
-                    }
-                    return null;
-                  },
-                  onChanged: (value) {
-                    weightVar = double.tryParse(value);
-                  },
-                ),
-              ],
-            ),
+    if (_tagNumberController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a tag number')),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Build the note with sex information
+      String note = _noteController.text.trim();
+      if (_selectedSex != null) {
+        note = 'Sex: $_selectedSex${note.isNotEmpty ? '\n$note' : ''}';
+      }
+
+      final cattle = Cattle(
+        id: '',
+        tagNumber: _tagNumberController.text.trim(),
+        tagColour: _selectedTagColor,
+        breed: _breed.isNotEmpty ? Map<String, dynamic>.from(_breed) : null,
+        birthDate: _birthDate,
+        weanDate: null,
+        weanWeight: null,
+        groupName: _groupName,
+        note: note.isNotEmpty ? note : null,
+        status: _selectedStatus,
+        pregnancy: 'unknown',
+      );
+
+      await _dbService.addCattle(
+        farmId: widget.farmId,
+        campId: widget.campId,
+        cattle: cattle,
+      );
+
+      if (mounted) {
+        widget.refreshCattleData();
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Cattle added successfully'),
+            backgroundColor: Colors.green,
           ),
-          actions: <Widget>[
-            TextButton(
-              child: Text('Cancel'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-            ElevatedButton(
-              child: Text('Add'),
-              onPressed: () {
-                if (weightFormKey.currentState!.validate()) {
-                  setState(() {
-                    _weight[dateVar!] = weightVar!;
-                    // add the _weight map to the _cattleData map
-                    _cattleData['weight'] = _weight;
-                  });
-                  Navigator.of(context).pop();
-                }
-              },
-            ),
-          ],
         );
-      },
-    );
+      }
+    } catch (e) {
+      dlog('Error adding cattle: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error adding cattle: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: baige,
       appBar: AppBar(
-        title: Text('Add New Cattle'),
+        title: const Text('Add New Cattle'),
+        elevation: 0,
+        backgroundColor: darkGreen,
+        foregroundColor: Colors.white,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              children: [
-                SizedBox(height: 4),
-                // tag number
-                TextFormField(
-                  decoration: _inputDecoration('Tag Number', 'e.g. aBc-12_3'),
-                  onSaved: (value) {
-                    _cattleData['tag'] = value;
-                  },
-                ),
-                SizedBox(height: 10),
-                // tag colour
-                Row(
+      body: Form(
+        key: _formKey,
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _dropdownMenu('Tag color',
-                        ['red', 'yellow', 'blue', 'green'], 'tagColor'),
-                    SizedBox(width: 10),
-                    // Sex
-                    _dropdownMenu(
-                        'Sex', ['Cow', 'Bull', 'Calf', 'Steer'], 'sex'),
-                  ],
-                ),
-                SizedBox(height: 10),
-                // status
-                SegmentedButton<Status>(
-                  style: ButtonStyle(
-                    shape: WidgetStateProperty.all<RoundedRectangleBorder>(
-                      RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ),
-                  ),
-                  showSelectedIcon: false,
-                  expandedInsets: EdgeInsets.symmetric(horizontal: 4),
-                  segments: [
-                    ButtonSegment(
-                      value: Status.active,
-                      label: Text('Active'),
-                    ),
-                    ButtonSegment(
-                      value: Status.sold,
-                      label: Text('Sold'),
-                    ),
-                    ButtonSegment(
-                      value: Status.dead,
-                      label: Text('Dead'),
-                    ),
-                  ],
-                  onSelectionChanged: (Set<Status> newStatus) {
-                    setState(() {
-                      _status = newStatus.first;
-                    });
-                  },
-                  selected: <Status>{_status},
-                ),
-                SizedBox(height: 10),
-                // breed
-                Row(
-                  children: [
-                    ElevatedButton(
-                      style: ButtonStyle(
-                        shape: WidgetStateProperty.all(RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(7))),
-                      ),
-                      onPressed: () => _showBreedPercentageDialog(context),
-                      child: Text('Add Breed:'),
-                    ),
-                    SizedBox(width: 10),
-                    Container(
-                      height: 50,
-                      width: 230,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(7),
-                        border: Border.all(color: Colors.white),
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(7),
-                        child: OverflowBox(
-                          maxHeight: 50,
-                          minHeight: 20,
-                          child: SingleChildScrollView(
-                            child: Column(
-                              children: _breed.entries.map(
-                                (entry) {
-                                  return ListTile(
-                                    tileColor: baige,
-                                    textColor: Colors.black,
-                                    onTap: () {
-                                      setState(() {
-                                        _breed.remove(entry.key);
-                                      });
-                                    },
-                                    title:
-                                        Text('${entry.key}: ${entry.value}%'),
-                                    contentPadding:
-                                        EdgeInsets.symmetric(horizontal: 8.0),
-                                  );
-                                },
-                              ).toList(),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 10),
-                // dateOfBirth
-                TextFormField(
-                  controller: _dateController,
-                  decoration: _inputDecoration('dateOfBirth', ''),
-                  readOnly: true,
-                  onSaved: (value) {
-                    _cattleData['dateOfBirth'] = value;
-                  },
-                  onTap: () => _selectDate(context, 'dateOfBirth'),
-                ),
-                SizedBox(height: 10),
-                // weight
-                // add the weight button and list of weights here
-                Row(
-                  children: [
-                    ElevatedButton(
-                      style: ButtonStyle(
-                        shape: WidgetStateProperty.all(RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(7))),
-                      ),
-                      onPressed: () => _showDateWeightDialog(context),
-                      child: Text('Add Weight:'),
-                    ),
-                    SizedBox(width: 10),
-                    Container(
-                      height: 50,
-                      width: 230,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(7),
-                        border: Border.all(color: Colors.white),
-                        color: baige,
-                      ),
-                      child: SingleChildScrollView(
-                        child: Column(
-                          children: _weight.entries.map(
-                            (entry) {
-                              return ListTile(
-                                tileColor: baige,
-                                textColor: Colors.black,
-                                onTap: () {
-                                  setState(() {
-                                    _weight.remove(entry.key);
-                                  });
-                                },
-                                title: Text('${entry.key}: ${entry.value} kg'),
-                                contentPadding:
-                                    EdgeInsets.symmetric(horizontal: 8.0),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(7),
-                                ),
-                              );
-                            },
-                          ).toList(),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 10),
-                // Group
-                Row(
-                  children: [
-                    Text(
-                      'Group:',
-                      style: TextColorTheme.inAppText,
-                    ),
-                    SizedBox(width: 10),
-                    Container(
-                      width: 100, // Set a fixed width to make it smaller
-                      decoration: BoxDecoration(
-                        border: Border.all(
-                            color: Colors.white), // Add a white border
-                        borderRadius: BorderRadius.circular(7),
-                      ),
-                      child: Row(
+                    _buildSectionTitle('Basic Information'),
+                    const SizedBox(height: 12),
+                    _buildCard(
+                      child: Column(
                         children: [
-                          SizedBox(
-                            width: 40, // Adjust the width of the IconButton
-                            child: IconButton(
-                              icon: Icon(Icons.remove,
-                                  size: 20), // Adjust the icon size
-                              onPressed: () {
-                                setState(() {
-                                  if (_group > 1) _group--;
-                                  _cattleData['group'] = _group;
-                                });
-                              },
+                          TextFormField(
+                            controller: _tagNumberController,
+                            decoration: _inputDecoration(
+                              'Tag Number',
+                              'e.g. ABC-123',
+                              Icons.local_offer,
+                            ),
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) {
+                                return 'Tag number is required';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: DropdownButtonFormField<String>(
+                                  value: _selectedTagColor,
+                                  decoration: _inputDecoration(
+                                    'Tag Color',
+                                    'Select color',
+                                    Icons.palette,
+                                  ),
+                                  items: [
+                                    'Red',
+                                    'Yellow',
+                                    'Blue',
+                                    'Green',
+                                    'White',
+                                    'Orange'
+                                  ]
+                                      .map((color) => DropdownMenuItem(
+                                            value: color.toLowerCase(),
+                                            child: Row(
+                                              children: [
+                                                Container(
+                                                  width: 20,
+                                                  height: 20,
+                                                  decoration: BoxDecoration(
+                                                    color: _getColorFromString(
+                                                        color),
+                                                    shape: BoxShape.circle,
+                                                    border: Border.all(
+                                                        color: Colors.grey),
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Text(color),
+                                              ],
+                                            ),
+                                          ))
+                                      .toList(),
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _selectedTagColor = value;
+                                    });
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: DropdownButtonFormField<String>(
+                                  value: _selectedSex,
+                                  decoration: _inputDecoration(
+                                    'Sex',
+                                    'Select sex',
+                                    Icons.wc,
+                                  ),
+                                  items:
+                                      ['Bull', 'Cow', 'Steer', 'Heifer', 'Calf']
+                                          .map((sex) => DropdownMenuItem(
+                                                value: sex,
+                                                child: Text(sex),
+                                              ))
+                                          .toList(),
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _selectedSex = value;
+                                    });
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: _birthDateController,
+                            decoration: _inputDecoration(
+                              'Birth Date',
+                              'Select date',
+                              Icons.calendar_today,
+                            ),
+                            readOnly: true,
+                            onTap: _selectBirthDate,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    _buildSectionTitle('Status & Group'),
+                    const SizedBox(height: 12),
+                    _buildCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Status',
+                            style: TextStyle(
+                                fontSize: 14, fontWeight: FontWeight.w500),
+                          ),
+                          const SizedBox(height: 8),
+                          SegmentedButton<String>(
+                            segments: const [
+                              ButtonSegment(
+                                value: 'alive',
+                                label: Text('Active'),
+                                icon: Icon(Icons.check_circle_outline),
+                              ),
+                              ButtonSegment(
+                                value: 'sold',
+                                label: Text('Sold'),
+                                icon: Icon(Icons.sell_outlined),
+                              ),
+                              ButtonSegment(
+                                value: 'dead',
+                                label: Text('Dead'),
+                                icon: Icon(Icons.block),
+                              ),
+                            ],
+                            selected: {_selectedStatus},
+                            onSelectionChanged: (Set<String> newSelection) {
+                              setState(() {
+                                _selectedStatus = newSelection.first;
+                              });
+                            },
+                            style: ButtonStyle(
+                              backgroundColor:
+                                  WidgetStateProperty.resolveWith<Color>(
+                                (Set<WidgetState> states) {
+                                  if (states.contains(WidgetState.selected)) {
+                                    return darkGreen;
+                                  }
+                                  return Colors.white;
+                                },
+                              ),
+                              foregroundColor:
+                                  WidgetStateProperty.resolveWith<Color>(
+                                (Set<WidgetState> states) {
+                                  if (states.contains(WidgetState.selected)) {
+                                    return Colors.white;
+                                  }
+                                  return Colors.black87;
+                                },
+                              ),
                             ),
                           ),
-                          Expanded(
-                            child: NumberPicker(
-                              value: _group,
-                              minValue: 1,
-                              maxValue: 100,
-                              itemHeight: 20,
-                              itemWidth: 30, // Adjust the item width
-                              onChanged: (value) {
-                                setState(() {
-                                  _group = value;
-                                });
-                                _cattleData['group'] = value;
-                              },
-                              textStyle: TextStyle(
-                                  fontSize: 14), // Adjust text size if needed
-                              selectedTextStyle: TextStyle(
-                                  fontSize: 16, fontWeight: FontWeight.bold),
+                          const SizedBox(height: 16),
+                          DropdownButtonFormField<String>(
+                            value: _groupName,
+                            decoration: _inputDecoration(
+                              'Group',
+                              'Select group',
+                              Icons.group,
                             ),
+                            items: List.generate(
+                                    10, (index) => 'Group ${index + 1}')
+                                .map((group) => DropdownMenuItem(
+                                      value: group,
+                                      child: Text(group),
+                                    ))
+                                .toList(),
+                            onChanged: (value) {
+                              setState(() {
+                                _groupName = value!;
+                              });
+                            },
                           ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    _buildSectionTitle('Breed Information'),
+                    const SizedBox(height: 12),
+                    _buildCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Breed Composition',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.grey[700],
+                                ),
+                              ),
+                              if (_breed.isNotEmpty)
+                                Text(
+                                  '${_breed.values.fold<double>(0, (sum, val) => sum + val).toStringAsFixed(0)}% Total',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          if (_breed.isEmpty)
+                            Center(
+                              child: Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 8),
+                                child: Text(
+                                  'No breeds added yet',
+                                  style: TextStyle(color: Colors.grey[500]),
+                                ),
+                              ),
+                            )
+                          else
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: _breed.entries.map((entry) {
+                                return Chip(
+                                  label: Text(
+                                      '${entry.key}: ${entry.value.toStringAsFixed(0)}%'),
+                                  deleteIcon: const Icon(Icons.close, size: 18),
+                                  onDeleted: () {
+                                    setState(() {
+                                      _breed.remove(entry.key);
+                                    });
+                                  },
+                                  backgroundColor: darkGreen.withOpacity(0.1),
+                                  deleteIconColor: darkGreen,
+                                );
+                              }).toList(),
+                            ),
+                          const SizedBox(height: 12),
                           SizedBox(
-                            width: 40, // Adjust the width of the IconButton
-                            child: IconButton(
-                              icon: Icon(Icons.add,
-                                  size: 20), // Adjust the icon size
-                              onPressed: () {
-                                setState(() {
-                                  if (_group < 100) _group++;
-                                  _cattleData['group'] = _group;
-                                });
-                              },
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed: _breed.values.fold<double>(
+                                          0, (sum, val) => sum + val) >=
+                                      100
+                                  ? null
+                                  : _showBreedDialog,
+                              icon: const Icon(Icons.add),
+                              label: const Text('Add Breed'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: darkGreen,
+                                side: BorderSide(color: darkGreen),
+                              ),
                             ),
                           ),
                         ],
                       ),
                     ),
-                  ],
-                ),
-                SizedBox(height: 20),
-                // save and cancel buttons
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    ElevatedButton(
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                        },
-                        child: Text('Cancel')),
-                    ElevatedButton(
-                      onPressed: () async {
-                        if (_formKey.currentState!.validate()) {
-                          _formKey.currentState!.save();
-                          // Generate deterministic cattle ID
-                          final dateOfBirth = _cattleData['dateOfBirth']
-                                  is String
-                              ? DateTime.tryParse(_cattleData['dateOfBirth']) ??
-                                  DateTime(1950, 1, 1)
-                              : DateTime(1950, 1, 1);
-                          final sex = _cattleData['sex'] ?? '';
-                          // final rand = (1000 +
-                          //         (DateTime.now().millisecondsSinceEpoch %
-                          //             9000))
-                          //     .toString();
-                          // final dateStr =
-                          //     "${dateOfBirth.year.toString().padLeft(4, '0')}${dateOfBirth.month.toString().padLeft(2, '0')}${dateOfBirth.day.toString().padLeft(2, '0')}";
-                          final cattleId = _cattleData['tag'];
-                          // Convert form data to Cattle object
-                          final cattle = Cattle(
-                            id: cattleId,
-                            dateOfBirth: dateOfBirth,
-                            group: _cattleData['group'] ?? 0,
-                            sex: sex,
-                            breed: Map<String, double>.from(_breed),
-                            weight: Map<String, dynamic>.from(_weight),
-                            farms: <DateTime,
-                                String>{}, // Placeholder, update as needed
-                            camps: <DateTime,
-                                String>{}, // Placeholder, update as needed
-                          );
-                          await _dbService.addCattle(
-                            farmerId: widget.farmerId,
-                            farmId: widget.farmId,
-                            campId: widget.campId,
-                            cattle: cattle,
-                            cattleId: cattleId,
-                          );
-                          widget.refreshCattleData();
-                          Navigator.of(context).pop();
-                        }
-                      },
-                      child: Text('Add'),
+                    const SizedBox(height: 24),
+                    _buildSectionTitle('Additional Notes'),
+                    const SizedBox(height: 12),
+                    _buildCard(
+                      child: TextFormField(
+                        controller: _noteController,
+                        decoration: _inputDecoration(
+                          'Notes',
+                          'Add any additional information...',
+                          Icons.notes,
+                        ),
+                        maxLines: 3,
+                      ),
                     ),
+                    const SizedBox(height: 80),
                   ],
                 ),
-              ],
+              ),
             ),
-          ),
+          ],
+        ),
+      ),
+      bottomNavigationBar: Container(
+        padding: const EdgeInsets.all(16.0),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, -2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed:
+                    _isLoading ? null : () => Navigator.of(context).pop(),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  side: BorderSide(color: Colors.grey[400]!),
+                ),
+                child: const Text('Cancel'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              flex: 2,
+              child: ElevatedButton(
+                onPressed: _isLoading ? null : _saveCattle,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: darkGreen,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+                child: _isLoading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Text('Add Cattle'),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  InputDecoration _inputDecoration(String labelText, String hintText) {
-    return InputDecoration(
-      hintText: hintText,
-      labelText: labelText,
-      border: OutlineInputBorder(),
+  Widget _buildSectionTitle(String title) {
+    return Text(
+      title,
+      style: const TextStyle(
+        fontSize: 18,
+        fontWeight: FontWeight.bold,
+        color: Colors.black87,
+      ),
     );
   }
 
-  Widget _dropdownMenu(String labelText, List<String> items, String key) {
-    return DropdownMenu(
-      enableFilter: true,
-      label: Text(labelText),
-      dropdownMenuEntries: items
-          .map((label) => DropdownMenuEntry(
-                label: label,
-                value: label,
-              ))
-          .toList(),
-      onSelected: (value) {
-        _cattleData[key] = value;
-      },
+  Widget _buildCard({required Widget child}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: child,
     );
+  }
+
+  InputDecoration _inputDecoration(
+      String labelText, String hintText, IconData icon) {
+    return InputDecoration(
+      labelText: labelText,
+      hintText: hintText,
+      prefixIcon: Icon(icon, color: darkGreen),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide(color: Colors.grey[300]!),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide(color: Colors.grey[300]!),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide(color: darkGreen, width: 2),
+      ),
+      filled: true,
+      fillColor: Colors.grey[50],
+    );
+  }
+
+  Color _getColorFromString(String colorName) {
+    switch (colorName.toLowerCase()) {
+      case 'red':
+        return Colors.red;
+      case 'yellow':
+        return Colors.yellow;
+      case 'blue':
+        return Colors.blue;
+      case 'green':
+        return Colors.green;
+      case 'white':
+        return Colors.white;
+      case 'orange':
+        return Colors.orange;
+      default:
+        return Colors.grey;
+    }
   }
 }
 

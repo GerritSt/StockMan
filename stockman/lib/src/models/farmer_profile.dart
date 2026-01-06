@@ -1,6 +1,11 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:stockman/src/config/constants.dart';
 import 'package:stockman/src/models/cattle_profile.dart';
+
+class GeoPoint {
+  final double latitude;
+  final double longitude;
+
+  const GeoPoint(this.latitude, this.longitude);
+}
 
 class Farmer {
   final String id;
@@ -10,6 +15,7 @@ class Farmer {
   final String phone;
   final GeoPoint location;
   final List<Farm> farms;
+  final String? profileImageUrl;
 
   Farmer({
     required this.id,
@@ -19,34 +25,33 @@ class Farmer {
     required this.phone,
     required this.location,
     required this.farms,
+    this.profileImageUrl,
   });
 
-  // Factory constructor from Firestore DocumentSnapshot (farms can be passed in)
-  factory Farmer.fromSnapshot(
-      {required DocumentSnapshot doc, List<Farm> farms = const []}) {
-    if (!doc.exists) {
-      return Farmer(
-        id: doc.id,
-        name: 'John',
-        surname: 'Doe',
-        email: 'john@doe.com',
-        phone: '0000000000',
-        location: NOWHERE,
-        farms: [],
-      );
-    }
-
-    final data = doc.data() as Map<String, dynamic>;
+  factory Farmer.fromJson(Map<String, dynamic> json,
+      {List<Farm> farms = const []}) {
+    // Location field removed from database, use default NOWHERE
     return Farmer(
-      id: doc.id,
-      name: data['name'] ?? 'John',
-      surname: data['surname'] ?? 'Doe',
-      email: data['email'] ?? 'john@doe.com',
-      phone: data['phone'] ?? '0000000000',
-      location: data['location'] ?? NOWHERE,
+      id: json['id'] ?? '',
+      name: json['name'] ?? '',
+      surname: json['surname'] ?? '',
+      email: json['email'] ?? '',
+      phone: json['phone'] ?? '',
+      location: const GeoPoint(0, 0), // Not stored in database
       farms: farms,
+      profileImageUrl: json['profile_image_url'],
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'surname': surname,
+        'email': email,
+        'phone': phone,
+        'profile_image_url': profileImageUrl,
+        // Location field removed from database
+      };
 }
 
 class Farm {
@@ -68,20 +73,33 @@ class Farm {
     required this.cattle,
   });
 
-  // Factory constructor from Firestore DocumentSnapshot (camps and cattle can be passed in)
-  factory Farm.fromSnapshot(DocumentSnapshot doc,
+  factory Farm.fromJson(Map<String, dynamic> json,
       {List<Camp> camps = const [], List<Cattle> cattle = const []}) {
-    final data = doc.data() as Map<String, dynamic>;
+    final locationStr = json['location'] ?? '0,0';
+    final parts = locationStr.split(',');
+    final location = parts.length == 2
+        ? GeoPoint(
+            double.tryParse(parts[0]) ?? 0, double.tryParse(parts[1]) ?? 0)
+        : const GeoPoint(0, 0);
+
     return Farm(
-      id: doc.id,
-      name: data['name'] ?? UNKNOWN,
-      location: data['location'] ?? NOWHERE,
-      type: data['type'] ?? UNKNOWN,
-      size: data['size'] ?? 0,
+      id: json['id'] ?? '',
+      name: json['name'] ?? '',
+      location: location,
+      type: json['type'] ?? '',
+      size: json['size'] ?? 0,
       camps: camps,
       cattle: cattle,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'location': '${location.latitude},${location.longitude}',
+        'type': type,
+        'size': size,
+      };
 }
 
 class Camp {
@@ -97,14 +115,26 @@ class Camp {
     required this.size,
   });
 
-  // Factory constructor from Firestore DocumentSnapshot
-  factory Camp.fromSnapshot(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+  factory Camp.fromJson(Map<String, dynamic> json) {
+    final locationStr = json['location'] ?? '0,0';
+    final parts = locationStr.split(',');
+    final location = parts.length == 2
+        ? GeoPoint(
+            double.tryParse(parts[0]) ?? 0, double.tryParse(parts[1]) ?? 0)
+        : const GeoPoint(0, 0);
+
     return Camp(
-      id: doc.id,
-      name: data['name'] ?? UNKNOWN,
-      location: data['location'] ?? NOWHERE,
-      size: data['size'] ?? 0,
+      id: json['id'] ?? '',
+      name: json['name'] ?? '',
+      location: location,
+      size: json['size'] ?? 0,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'location': '${location.latitude},${location.longitude}',
+        'size': size,
+      };
 }

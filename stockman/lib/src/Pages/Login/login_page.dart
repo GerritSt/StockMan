@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'register_page.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../../config/text_theme.dart';
 import '../../config/app_theme.dart';
 import 'dart:async';
+import 'package:stockman/src/providers/farmer_db_service.dart';
+import 'package:stockman/src/models/farmer_profile.dart';
+import 'package:stockman/src/config/constants.dart';
+import 'package:stockman/src/config/supabase_config.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -55,14 +59,25 @@ class _LoginPageState extends State<LoginPage> {
     try {
       var email = _emailController.text;
       print(email);
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
+      final authResponse =
+          await Supabase.instance.client.auth.signInWithPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
+
+      // Update last sign-in timestamp
+      if (authResponse.user != null) {
+        await FarmerDbService().updateLastSignin(authResponse.user!.id);
+      }
+
       // On success, navigation will be handled by the main app
-    } on FirebaseAuthException catch (e) {
+    } on AuthException catch (e) {
       setState(() {
         _errorMessage = e.message;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'An error occurred during login';
       });
     } finally {
       setState(() {
@@ -71,154 +86,167 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  Future<String?> _promptForPassword(String email) async {
-    String? password;
-    await showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        final TextEditingController _passwordDialogController =
-            TextEditingController();
-        return AlertDialog(
-          backgroundColor: baige,
-          title: Text('Enter Password', style: TextColorTheme.heading),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                  'To link your Google account, please enter the password for $email.',
-                  style: TextColorTheme.inAppText),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _passwordDialogController,
-                obscureText: true,
-                decoration: const InputDecoration(
-                    labelText: 'Password', prefixIcon: Icon(Icons.lock)),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                  backgroundColor: darkGreen, foregroundColor: baige),
-              onPressed: () {
-                password = _passwordDialogController.text;
-                Navigator.of(context).pop();
-              },
-              child: const Text('Continue'),
-            ),
-          ],
-        );
-      },
-    );
-    return password;
-  }
-
   Future<void> _loginWithGoogle() async {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
     try {
-      print('Google sign-in started');
-      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      dlog('Google sign-in started');
+
+      // Initialize GoogleSignIn with the web client ID for getting ID token
+      final googleSignIn = GoogleSignIn(
+        serverClientId: SupabaseConfig.googleWebClientId,
+        scopes: ['email', 'profile'],
+      );
+
+      // Sign out first to ensure clean sign-in flow
+      await googleSignIn.signOut();
+
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+
       if (googleUser == null) {
-        print('Google user is null');
+        dlog('Google sign-in cancelled by user');
         setState(() {
           _isLoading = false;
           _errorMessage = 'Google sign-in cancelled.';
         });
         return;
       }
+
+      dlog('Google user signed in: ${googleUser.email}');
+
       final GoogleSignInAuthentication googleAuth =
           await googleUser.authentication;
-      final googleCredential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
+
+      final idToken = googleAuth.idToken;
+      final accessToken = googleAuth.accessToken;
+
+      dlog('ID Token: ${idToken != null ? "present" : "null"}');
+      dlog('Access Token: ${accessToken != null ? "present" : "null"}');
+
+      if (idToken == null) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage =
+              'Failed to get authentication token. Please try again.';
+        });
+        return;
+      }
+
+      dlog('Signing in to Supabase with Google credentials');
+      final authResponse =
+          await Supabase.instance.client.auth.signInWithIdToken(
+        provider: OAuthProvider.google,
+        idToken: idToken,
+        accessToken: accessToken,
       );
 
-      final currentUser = FirebaseAuth.instance.currentUser;
+      dlog('Supabase sign-in successful: ${authResponse.user?.email}');
 
-      if (currentUser != null) {
-        // User is already signed in (email/password), try to link Google
-        try {
-          await currentUser.linkWithCredential(googleCredential);
-          // Success! Now user can use both methods
-        } on FirebaseAuthException catch (e) {
-          if (e.code == 'provider-already-linked') {
-            // Google already linked, just sign in with Google
-            await FirebaseAuth.instance.signInWithCredential(googleCredential);
-          } else if (e.code == 'credential-already-in-use') {
-            setState(() {
-              _errorMessage =
-                  'This Google account is already linked to another user.';
-            });
-          } else {
-            setState(() {
-              _errorMessage = e.message;
-            });
-          }
+      // Check if farmer record exists, create if not
+      if (authResponse.user != null) {
+        final farmerExists = await _checkFarmerExists(authResponse.user!.id);
+        if (!farmerExists) {
+          dlog('Creating farmer record for new Google user');
+
+          // Split the display name into name and surname
+          final nameParts = _splitName(googleUser.displayName);
+
+          final farmer = Farmer(
+            id: authResponse.user!.id,
+            name: nameParts['name']!,
+            surname: nameParts['surname']!,
+            email: googleUser.email,
+            phone: '',
+            location: NOWHERE,
+            farms: [],
+          );
+          await FarmerDbService().addFarmer(farmer);
+          dlog(
+              'Farmer record created for Google user: ${authResponse.user!.id}');
+        } else {
+          dlog(
+              'Farmer record already exists for user: ${authResponse.user!.id}');
         }
-      } else {
-        // No user signed in, proceed as normal
-        try {
-          await FirebaseAuth.instance.signInWithCredential(googleCredential);
-        } on FirebaseAuthException catch (e) {
-          if (e.code == 'account-exists-with-different-credential') {
-            // Handle account linking as before
-            final email = e.email;
-            final pendingCredential = e.credential;
-            if (pendingCredential == null) {
-              setState(() {
-                _isLoading = false;
-                _errorMessage =
-                    'No pending credential to link. Please contact support.';
-              });
-              return;
-            }
-            final password = await _promptForPassword(email!);
-            if (password == null || password.isEmpty) {
-              setState(() {
-                _isLoading = false;
-                _errorMessage = 'Password required to link accounts.';
-              });
-              return;
-            }
-            try {
-              await FirebaseAuth.instance.signOut();
-              final userCredential =
-                  await FirebaseAuth.instance.signInWithEmailAndPassword(
-                email: email,
-                password: password,
-              );
-              await userCredential.user!.linkWithCredential(pendingCredential);
-            } on FirebaseAuthException catch (linkError) {
-              setState(() {
-                _isLoading = false;
-                _errorMessage = linkError.message ?? 'Failed to link accounts.';
-              });
-              return;
-            }
-          } else {
-            setState(() {
-              _errorMessage = e.message;
-            });
-          }
-        }
+
+        // Update last sign-in timestamp
+        await FarmerDbService().updateLastSignin(authResponse.user!.id);
       }
-    } catch (e) {
-      print('Other error: ${e.toString()}');
+
+      dlog('Google sign-in completed successfully');
+      // Success! Navigation will be handled by the main app
+    } on AuthException catch (e) {
+      dlog('AuthException during Google sign-in: ${e.message}');
       setState(() {
-        _errorMessage = 'Google sign-in failed.';
+        _errorMessage = e.message;
+      });
+    } catch (e) {
+      dlog('Error during Google sign-in: ${e.toString()}');
+      setState(() {
+        _errorMessage = 'Google sign-in failed: ${e.toString()}';
       });
     } finally {
       setState(() {
         _isLoading = false;
       });
+    }
+  }
+
+  // Helper method to check if farmer exists
+  Future<bool> _checkFarmerExists(String authId) async {
+    try {
+      final farmer = await FarmerDbService().getFarmer(authId);
+      return farmer.id.isNotEmpty;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // Helper method to check which auth provider(s) an email is registered with
+  Future<String?> _checkEmailProvider(String email) async {
+    try {
+      // Check if email exists in farmers table
+      final response = await Supabase.instance.client
+          .from('farmers')
+          .select('id')
+          .eq('email', email.trim())
+          .maybeSingle();
+
+      if (response == null) {
+        return null; // Email not registered
+      }
+
+      // Get the user's auth providers
+      final userId = response['id'];
+      final userResponse = await Supabase.instance.client.auth.admin
+          .getUserById(userId)
+          .catchError((_) => null);
+
+      // Since we can't access admin API from client, we'll use a simpler approach:
+      // Try to check if they have a password set by looking at metadata
+      // For now, we'll assume Google if the email exists
+      return 'google'; // Simplified - assumes Google OAuth
+    } catch (e) {
+      dlog('Error checking email provider: $e');
+      return null;
+    }
+  }
+
+  // Helper method to split full name into first and last name
+  Map<String, String> _splitName(String? fullName) {
+    if (fullName == null || fullName.trim().isEmpty) {
+      return {'name': 'User', 'surname': ''};
+    }
+
+    final parts = fullName.trim().split(' ');
+    if (parts.length == 1) {
+      return {'name': parts[0], 'surname': ''};
+    } else if (parts.length == 2) {
+      return {'name': parts[0], 'surname': parts[1]};
+    } else {
+      // If more than 2 parts, first name is first word, surname is rest
+      return {'name': parts[0], 'surname': parts.sublist(1).join(' ')};
     }
   }
 
