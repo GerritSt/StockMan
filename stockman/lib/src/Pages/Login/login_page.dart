@@ -105,8 +105,9 @@ class _LoginPageState extends State<LoginPage> {
 
       final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
 
+      dlog('Sign-in call completed');
       if (googleUser == null) {
-        dlog('Google sign-in cancelled by user');
+        dlog('Google sign-in cancelled by user (googleUser is null)');
         setState(() {
           _isLoading = false;
           _errorMessage = 'Google sign-in cancelled.';
@@ -114,18 +115,27 @@ class _LoginPageState extends State<LoginPage> {
         return;
       }
 
-      dlog('Google user signed in: ${googleUser.email}');
+      dlog('Google user signed in successfully!');
+      dlog('  - Email: ${googleUser.email}');
+      dlog('  - Display Name: ${googleUser.displayName}');
+      dlog('  - ID: ${googleUser.id}');
 
+      dlog('Getting authentication tokens...');
       final GoogleSignInAuthentication googleAuth =
           await googleUser.authentication;
 
       final idToken = googleAuth.idToken;
       final accessToken = googleAuth.accessToken;
 
-      dlog('ID Token: ${idToken != null ? "present" : "null"}');
-      dlog('Access Token: ${accessToken != null ? "present" : "null"}');
+      dlog('Authentication tokens retrieved:');
+      dlog(
+          '  - ID Token: ${idToken != null ? "present (${idToken.substring(0, 20)}...)" : "NULL"}');
+      dlog(
+          '  - Access Token: ${accessToken != null ? "present (${accessToken.substring(0, 20)}...)" : "NULL"}');
 
       if (idToken == null) {
+        dlog(
+            'ERROR: ID Token is null! Cannot proceed with Supabase authentication.');
         setState(() {
           _isLoading = false;
           _errorMessage =
@@ -134,7 +144,9 @@ class _LoginPageState extends State<LoginPage> {
         return;
       }
 
-      dlog('Signing in to Supabase with Google credentials');
+      dlog('Attempting Supabase sign-in with Google credentials...');
+      dlog('  - Provider: OAuthProvider.google');
+      dlog('  - ID Token length: ${idToken.length}');
       final authResponse =
           await Supabase.instance.client.auth.signInWithIdToken(
         provider: OAuthProvider.google,
@@ -142,7 +154,9 @@ class _LoginPageState extends State<LoginPage> {
         accessToken: accessToken,
       );
 
-      dlog('Supabase sign-in successful: ${authResponse.user?.email}');
+      dlog('Supabase sign-in successful!');
+      dlog('  - User Email: ${authResponse.user?.email}');
+      dlog('  - User ID: ${authResponse.user?.id}');
 
       // Check if farmer record exists, create if not
       if (authResponse.user != null) {

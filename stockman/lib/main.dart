@@ -3,10 +3,14 @@ import 'package:stockman/src/Pages/main_page.dart';
 import 'package:stockman/src/config/app_theme.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:stockman/src/config/supabase_config.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'src/Pages/Login/login_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Load environment variables from .env file
+  await dotenv.load(fileName: ".env");
 
   await Supabase.initialize(
     url: SupabaseConfig.supabaseUrl,
