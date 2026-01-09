@@ -2,6 +2,7 @@ class Cattle {
   final String id;
   final String tagNumber;
   final String? tagColour;
+  final String? sex;
   final Map<String, dynamic>? breed;
   final DateTime? birthDate;
   final DateTime? weanDate;
@@ -17,6 +18,7 @@ class Cattle {
     required this.id,
     required this.tagNumber,
     this.tagColour,
+    this.sex,
     this.breed,
     this.birthDate,
     this.weanDate,
@@ -33,6 +35,7 @@ class Cattle {
         id: json['id'] ?? '',
         tagNumber: json['tag_number'] ?? '',
         tagColour: json['tag_colour'],
+        sex: json['sex'],
         breed: json['breed'],
         birthDate: json['birth_date'] != null
             ? DateTime.parse(json['birth_date'])
@@ -52,6 +55,7 @@ class Cattle {
   Map<String, dynamic> toJson() => {
         'tag_number': tagNumber,
         if (tagColour != null) 'tag_colour': tagColour,
+        if (sex != null) 'sex': sex,
         if (breed != null) 'breed': breed,
         if (birthDate != null)
           'birth_date': birthDate!.toIso8601String().split('T')[0],
@@ -59,7 +63,7 @@ class Cattle {
           'wean_date': weanDate!.toIso8601String().split('T')[0],
         if (weanWeight != null) 'wean_weight': weanWeight,
         if (groupName != null) 'group_name': groupName,
-        if (note != null) 'note': note,
+        'note': note,
         'status': status,
         'pregnancy': pregnancy,
       };

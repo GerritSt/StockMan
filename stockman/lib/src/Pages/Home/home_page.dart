@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:stockman/src/Pages/Home/add_cattle_page.dart';
+import 'package:stockman/src/Pages/Home/cattle_info_page.dart';
 import 'package:stockman/src/config/constants.dart';
 import 'package:stockman/src/config/text_theme.dart';
 import 'package:stockman/src/models/cattle_profile.dart';
@@ -159,6 +160,7 @@ class _HomePageState extends State<HomePage> {
                       isSelected: _selectedCattle.contains(listEntry),
                       onSelected: _toggleSelection,
                       selectionMode: _selectionMode,
+                      refreshCattleData: widget.refreshCattleData,
                     );
                   },
                 ),
@@ -201,6 +203,7 @@ class ListEntryFormat extends StatelessWidget {
     required this.isSelected,
     required this.onSelected,
     required this.selectionMode,
+    required this.refreshCattleData,
   });
 
   // Format: { "name": "Cow 1", "breed": "Holstein", "age": 5 }
@@ -208,6 +211,7 @@ class ListEntryFormat extends StatelessWidget {
   final bool isSelected;
   final ValueChanged<Cattle> onSelected;
   final bool selectionMode;
+  final VoidCallback refreshCattleData;
 
   @override
   Widget build(BuildContext context) {
@@ -254,7 +258,15 @@ class ListEntryFormat extends StatelessWidget {
           if (selectionMode) {
             onSelected(cattleEntry);
           } else {
-            dlog('Tile tapped!');
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => CattleInfoPage(
+                  cattle: cattleEntry,
+                  refreshCattleData: refreshCattleData,
+                ),
+              ),
+            );
           }
         },
         onLongPress: () => onSelected(cattleEntry),

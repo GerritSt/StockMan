@@ -187,22 +187,19 @@ class _AddCattlePageState extends State<AddCattlePage> {
     });
 
     try {
-      // Build the note with sex information
-      String note = _noteController.text.trim();
-      if (_selectedSex != null) {
-        note = 'Sex: $_selectedSex${note.isNotEmpty ? '\n$note' : ''}';
-      }
-
       final cattle = Cattle(
         id: '',
         tagNumber: _tagNumberController.text.trim(),
         tagColour: _selectedTagColor,
+        sex: _selectedSex,
         breed: _breed.isNotEmpty ? Map<String, dynamic>.from(_breed) : null,
         birthDate: _birthDate,
         weanDate: null,
         weanWeight: null,
         groupName: _groupName,
-        note: note.isNotEmpty ? note : null,
+        note: _noteController.text.trim().isNotEmpty
+            ? _noteController.text.trim()
+            : null,
         status: _selectedStatus,
         pregnancy: 'unknown',
       );

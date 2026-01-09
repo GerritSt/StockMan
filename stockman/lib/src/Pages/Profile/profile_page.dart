@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:stockman/src/config/app_theme.dart';
 import 'package:stockman/src/config/text_theme.dart';
 import 'package:stockman/src/Pages/Profile/edit_profile_page.dart';
-import 'package:stockman/src/Pages/Farm/farm_management_page.dart';
+import 'package:stockman/src/Pages/Profile/farm_management_page.dart';
 import 'package:stockman/src/providers/farmer_db_service.dart';
 import 'package:stockman/src/models/farmer_profile.dart';
 
