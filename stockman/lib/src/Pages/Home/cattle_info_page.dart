@@ -5,9 +5,12 @@ import 'package:stockman/src/config/text_theme.dart';
 import 'package:stockman/src/models/cattle_profile.dart';
 import 'package:stockman/src/models/weight_log.dart';
 import 'package:stockman/src/models/treatment_log.dart';
+import 'package:stockman/src/models/cattle_document.dart';
 import 'package:stockman/src/providers/cattle_db_service.dart';
 import 'package:stockman/src/providers/weight_log_db_service.dart';
 import 'package:stockman/src/providers/treatment_log_db_service.dart';
+import 'package:stockman/src/providers/cattle_document_db_service.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class CattleInfoPage extends StatefulWidget {
   final Cattle cattle;
@@ -27,6 +30,7 @@ class _CattleInfoPageState extends State<CattleInfoPage> {
   final CattleDbService _dbService = CattleDbService();
   final WeightLogDbService _weightLogService = WeightLogDbService();
   final TreatmentLogDbService _treatmentLogService = TreatmentLogDbService();
+  final CattleDocumentDbService _documentService = CattleDocumentDbService();
   final _formKey = GlobalKey<FormState>();
   bool _isEditMode = false;
   bool _isLoading = false;
@@ -49,6 +53,7 @@ class _CattleInfoPageState extends State<CattleInfoPage> {
 
   List<WeightLog> _weightLogs = [];
   List<TreatmentLog> _treatmentLogs = [];
+  List<CattleDocument> _documents = [];
 
   @override
   void initState() {
@@ -69,11 +74,7 @@ class _CattleInfoPageState extends State<CattleInfoPage> {
         TextEditingController(text: widget.cattle.groupName ?? '');
     _noteController = TextEditingController(text: widget.cattle.note ?? '');
 
-    // Capitalize first letter of tag color to match dropdown items
-    _selectedTagColor = widget.cattle.tagColour != null
-        ? widget.cattle.tagColour![0].toUpperCase() +
-            widget.cattle.tagColour!.substring(1).toLowerCase()
-        : null;
+    _selectedTagColor = widget.cattle.tagColour;
     _selectedSex = widget.cattle.sex;
     _selectedStatus = widget.cattle.status;
     _selectedCurrentPregnancyStatus = widget.cattle.currentPregnancyStatus;
@@ -94,10 +95,14 @@ class _CattleInfoPageState extends State<CattleInfoPage> {
       final treatmentLogs = await _treatmentLogService.getTreatmentLogs(
         cattleId: widget.cattle.id,
       );
+      final documents = await _documentService.getDocuments(
+        cattleId: widget.cattle.id,
+      );
 
       setState(() {
         _weightLogs = weightLogs;
         _treatmentLogs = treatmentLogs;
+        _documents = documents;
       });
     } catch (e) {
       dlog('Error loading logs: $e');
@@ -273,8 +278,63 @@ class _CattleInfoPageState extends State<CattleInfoPage> {
     });
   }
 
+  Future<void> _openDocument(CattleDocument doc) async {
+    try {
+      dlog('Opening document: ${doc.title}');
+      // Get signed URL from Supabase Storage
+      final signedUrl = await _documentService.getDocumentUrl(doc.filePath);
+
+      final uri = Uri.parse(signedUrl);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        throw 'Could not launch document';
+      }
+    } catch (e) {
+      dlog('Error opening document: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error opening document: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _saveCattleInfo() async {
     if (!_formKey.currentState!.validate()) return;
+
+    // Validate breed composition totals 100% if any breeds are added
+    if (_breed.isNotEmpty) {
+      final total = _breed.values.fold<double>(0, (sum, val) => sum + val);
+      if (total != 100) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                'Breed composition must total 100%. Current total: ${total.toStringAsFixed(0)}%'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+    }
+
+    // Validate wean date is at least 12 days after birth date
+    if (_weanDate != null && _birthDate != null) {
+      final difference = _weanDate!.difference(_birthDate!).inDays;
+      if (difference < 12) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                'Wean date must be at least 12 days after birth date. Current difference: $difference days'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+    }
 
     setState(() {
       _isLoading = true;
@@ -378,6 +438,10 @@ class _CattleInfoPageState extends State<CattleInfoPage> {
         return Colors.blue;
       case 'green':
         return Colors.green;
+      case 'white':
+        return Colors.white;
+      case 'orange':
+        return Colors.orange;
       default:
         return Colors.grey;
     }
@@ -435,13 +499,13 @@ class _CattleInfoPageState extends State<CattleInfoPage> {
                     const SizedBox(height: 20),
 
                     // Identification Section
-                    _buildSectionHeader('Identification'),
+                    _buildSectionHeader('📋 Identification'),
                     _buildInfoCard(
                       children: [
                         _buildTextFormField(
                           controller: _tagNumberController,
                           label: 'Tag Number',
-                          enabled: _isEditMode,
+                          enabled: false, // Never editable
                           validator: (value) {
                             if (value == null || value.trim().isEmpty) {
                               return 'Tag number is required';
@@ -458,9 +522,16 @@ class _CattleInfoPageState extends State<CattleInfoPage> {
                                   border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(8)),
                                 ),
-                                items: ['Red', 'Yellow', 'Blue', 'Green']
+                                items: [
+                                  'Red',
+                                  'Yellow',
+                                  'Blue',
+                                  'Green',
+                                  'White',
+                                  'Orange'
+                                ]
                                     .map((color) => DropdownMenuItem(
-                                          value: color,
+                                          value: color.toLowerCase(),
                                           child: Row(
                                             children: [
                                               Container(
@@ -593,8 +664,8 @@ class _CattleInfoPageState extends State<CattleInfoPage> {
                     ),
                     const SizedBox(height: 20),
 
-                    // Birth & Growth Information
-                    _buildSectionHeader('Birth & Growth'),
+                    // Birth & Weight Information
+                    _buildSectionHeader('📅 Birth & Weight'),
                     _buildInfoCard(
                       children: [
                         _isEditMode
@@ -620,6 +691,8 @@ class _CattleInfoPageState extends State<CattleInfoPage> {
                             value: _getAgeDisplay(),
                           ),
                         ],
+                        const SizedBox(height: 16),
+                        const Divider(),
                         const SizedBox(height: 16),
                         _isEditMode
                             ? GestureDetector(
@@ -732,8 +805,75 @@ class _CattleInfoPageState extends State<CattleInfoPage> {
                     _buildTreatmentLogsSection(),
                     const SizedBox(height: 20),
 
+                    // Documents Section
+                    _buildSectionHeader('📄 Branding Documents'),
+                    _buildInfoCard(
+                      children: [
+                        if (_documents.isEmpty)
+                          Center(
+                            child: Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 16.0),
+                              child: Column(
+                                children: [
+                                  Icon(Icons.description_outlined,
+                                      size: 48, color: Colors.grey[400]),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'No documents available',
+                                    style: TextStyle(
+                                      color: Colors.grey[700],
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                        else
+                          Column(
+                            children: _documents.map((doc) {
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 8.0),
+                                child: ListTile(
+                                  leading: Icon(
+                                    Icons.insert_drive_file,
+                                    color: darkGreen,
+                                  ),
+                                  title: Text(
+                                    doc.title ?? 'Document',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w500,
+                                      color: Colors.black87,
+                                    ),
+                                  ),
+                                  subtitle: Text(
+                                    doc.uploadedAt.toString().split(' ')[0],
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                  trailing: Icon(
+                                    Icons.open_in_new,
+                                    color: darkGreen,
+                                    size: 20,
+                                  ),
+                                  tileColor: Colors.grey[50],
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  onTap: () => _openDocument(doc),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+
                     // Notes
-                    _buildSectionHeader('Notes'),
+                    _buildSectionHeader('📝 Notes'),
                     _buildInfoCard(
                       children: [
                         _buildTextFormField(

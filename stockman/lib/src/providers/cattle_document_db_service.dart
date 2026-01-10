@@ -96,6 +96,22 @@ class CattleDocumentDbService {
     }
   }
 
+  /// Get a signed URL for viewing/downloading a document
+  /// The URL expires after the specified time (default 1 hour)
+  Future<String> getDocumentUrl(String filePath, {int expiresIn = 3600}) async {
+    try {
+      dlog('Getting signed URL for: $filePath');
+      final signedUrl = await _supabase.storage
+          .from(bucketName)
+          .createSignedUrl(filePath, expiresIn);
+      dlog('Signed URL generated successfully');
+      return signedUrl;
+    } catch (e) {
+      dlog('Error getting document URL: $e');
+      rethrow;
+    }
+  }
+
   /// Upload a document file to Supabase Storage and create database record
   /// This is the primary method to add documents - handles both storage and database
   Future<CattleDocument> uploadDocument({
@@ -306,11 +322,13 @@ class CattleDocumentDbService {
   }
 
   /// Get public URL for a document
-  String getDocumentUrl(String filePath) {
+  /// Note: Public URLs don't expire but require the bucket to be public
+  /// For private buckets, use getDocumentUrl() to get signed URLs instead
+  String getPublicDocumentUrl(String filePath) {
     try {
       return _supabase.storage.from(bucketName).getPublicUrl(filePath);
     } catch (e) {
-      dlog('Error getting document URL: $e');
+      dlog('Error getting public document URL: $e');
       rethrow;
     }
   }

@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:stockman/src/config/app_theme.dart';
+import 'package:stockman/src/config/text_theme.dart';
 import 'package:stockman/src/providers/cattle_db_service.dart';
 import 'package:stockman/src/providers/weight_log_db_service.dart';
 import 'package:stockman/src/providers/cattle_document_db_service.dart';
@@ -265,6 +266,36 @@ class _AddCattlePageState extends State<AddCattlePage> {
       return;
     }
 
+    // Validate breed composition totals 100% if any breeds are added
+    if (_breed.isNotEmpty) {
+      final total = _breed.values.fold<double>(0, (sum, val) => sum + val);
+      if (total != 100) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                'Breed composition must total 100%. Current total: ${total.toStringAsFixed(0)}%'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+    }
+
+    // Validate wean date is at least 12 days after birth date
+    if (_hasBeenWeaned && _weanDate != null && _birthDate != null) {
+      final difference = _weanDate!.difference(_birthDate!).inDays;
+      if (difference < 12) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                'Wean date must be at least 12 days after birth date. Current difference: $difference days'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+    }
+
     setState(() {
       _isLoading = true;
     });
@@ -377,10 +408,10 @@ class _AddCattlePageState extends State<AddCattlePage> {
     return Scaffold(
       backgroundColor: baige,
       appBar: AppBar(
-        title: const Text('Add New Cattle'),
-        elevation: 0,
-        backgroundColor: darkGreen,
-        foregroundColor: Colors.white,
+        title: const Text(
+          'Add New Cattle',
+          style: TextColorTheme.heading,
+        ),
       ),
       body: Form(
         key: _formKey,
@@ -392,7 +423,7 @@ class _AddCattlePageState extends State<AddCattlePage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildSectionTitle('Basic Information'),
+                    _buildSectionTitle('📋 Basic Information'),
                     const SizedBox(height: 12),
                     _buildCard(
                       child: Column(
@@ -480,77 +511,6 @@ class _AddCattlePageState extends State<AddCattlePage> {
                               ),
                             ],
                           ),
-                          const SizedBox(height: 16),
-                          TextFormField(
-                            controller: _birthDateController,
-                            decoration: _inputDecoration(
-                              'Birth Date',
-                              'Select date',
-                            ),
-                            readOnly: true,
-                            onTap: _selectBirthDate,
-                          ),
-                          const SizedBox(height: 16),
-                          // Has Been Weaned Checkbox
-                          CheckboxListTile(
-                            title: const Text('Has been weaned'),
-                            value: _hasBeenWeaned,
-                            onChanged: (value) {
-                              setState(() {
-                                _hasBeenWeaned = value ?? false;
-                                if (!_hasBeenWeaned) {
-                                  _weanDate = null;
-                                  _weanDateController.clear();
-                                  _weanWeightController.clear();
-                                }
-                              });
-                            },
-                            controlAffinity: ListTileControlAffinity.leading,
-                            contentPadding: EdgeInsets.zero,
-                          ),
-                          if (_hasBeenWeaned) ...[
-                            const SizedBox(height: 16),
-                            TextFormField(
-                              controller: _weanDateController,
-                              decoration: _inputDecoration(
-                                'Wean Date',
-                                'Select date',
-                              ),
-                              readOnly: true,
-                              onTap: _selectWeanDate,
-                              validator: (value) {
-                                if (_hasBeenWeaned &&
-                                    (value == null || value.isEmpty)) {
-                                  return 'Please select wean date';
-                                }
-                                return null;
-                              },
-                            ),
-                            const SizedBox(height: 16),
-                            TextFormField(
-                              controller: _weanWeightController,
-                              decoration: _inputDecoration(
-                                'Wean Weight (kg)',
-                                'e.g. 180',
-                              ),
-                              keyboardType: TextInputType.number,
-                              validator: (value) {
-                                if (_hasBeenWeaned &&
-                                    (value == null || value.isEmpty)) {
-                                  return 'Please enter wean weight';
-                                }
-                                if (_hasBeenWeaned) {
-                                  final weight = double.tryParse(value!);
-                                  if (weight == null ||
-                                      weight <= 0 ||
-                                      weight > 1000) {
-                                    return 'Enter a valid weight (1-1000 kg)';
-                                  }
-                                }
-                                return null;
-                              },
-                            ),
-                          ],
                         ],
                       ),
                     ),
@@ -564,7 +524,10 @@ class _AddCattlePageState extends State<AddCattlePage> {
                           const Text(
                             'Status',
                             style: TextStyle(
-                                fontSize: 14, fontWeight: FontWeight.w500),
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.black87,
+                            ),
                           ),
                           const SizedBox(height: 8),
                           SegmentedButton<String>(
@@ -633,7 +596,169 @@ class _AddCattlePageState extends State<AddCattlePage> {
                       ),
                     ),
                     const SizedBox(height: 24),
-                    _buildSectionTitle('Breed Information'),
+                    _buildSectionTitle('Birth & Weight Information'),
+                    const SizedBox(height: 12),
+                    _buildCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          TextFormField(
+                            controller: _birthDateController,
+                            decoration: _inputDecoration(
+                              '📅 Birth Date',
+                              'Select date',
+                            ).copyWith(
+                              suffixIcon: const Icon(Icons.calendar_today,
+                                  color: darkGreen),
+                            ),
+                            readOnly: true,
+                            onTap: _selectBirthDate,
+                          ),
+                          const SizedBox(height: 16),
+                          // Has Been Weaned Checkbox
+                          CheckboxListTile(
+                            title: const Text(
+                              'Has been weaned',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w500,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            value: _hasBeenWeaned,
+                            onChanged: (value) {
+                              setState(() {
+                                _hasBeenWeaned = value ?? false;
+                                if (!_hasBeenWeaned) {
+                                  _weanDate = null;
+                                  _weanDateController.clear();
+                                  _weanWeightController.clear();
+                                }
+                              });
+                            },
+                            controlAffinity: ListTileControlAffinity.leading,
+                            contentPadding: EdgeInsets.zero,
+                            activeColor: darkGreen,
+                          ),
+                          if (_hasBeenWeaned) ...[
+                            const SizedBox(height: 16),
+                            TextFormField(
+                              controller: _weanDateController,
+                              decoration: _inputDecoration(
+                                '📅 Wean Date',
+                                'Select date',
+                              ).copyWith(
+                                suffixIcon: const Icon(Icons.calendar_today,
+                                    color: darkGreen),
+                              ),
+                              readOnly: true,
+                              onTap: _selectWeanDate,
+                              validator: (value) {
+                                if (_hasBeenWeaned &&
+                                    (value == null || value.isEmpty)) {
+                                  return 'Please select wean date';
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 16),
+                            TextFormField(
+                              controller: _weanWeightController,
+                              decoration: _inputDecoration(
+                                'Wean Weight (kg)',
+                                'e.g. 180',
+                              ).copyWith(
+                                suffixIcon: const Icon(
+                                    Icons.monitor_weight_outlined,
+                                    color: darkGreen),
+                              ),
+                              keyboardType: TextInputType.number,
+                              validator: (value) {
+                                if (_hasBeenWeaned &&
+                                    (value == null || value.isEmpty)) {
+                                  return 'Please enter wean weight';
+                                }
+                                if (_hasBeenWeaned) {
+                                  final weight = double.tryParse(value!);
+                                  if (weight == null ||
+                                      weight <= 0 ||
+                                      weight > 1000) {
+                                    return 'Enter a valid weight (1-1000 kg)';
+                                  }
+                                }
+                                return null;
+                              },
+                            ),
+                          ],
+                          const SizedBox(height: 16),
+                          const Divider(),
+                          const SizedBox(height: 16),
+                          // Initial Weight Section
+                          CheckboxListTile(
+                            title: const Text(
+                              'Add initial weight',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w500,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            value: _addInitialWeight,
+                            onChanged: (value) {
+                              setState(() {
+                                _addInitialWeight = value ?? false;
+                                if (!_addInitialWeight) {
+                                  _initialWeightController.clear();
+                                  _initialWeightDate = null;
+                                }
+                              });
+                            },
+                            controlAffinity: ListTileControlAffinity.leading,
+                            contentPadding: EdgeInsets.zero,
+                            activeColor: darkGreen,
+                          ),
+                          if (_addInitialWeight) ...[
+                            const SizedBox(height: 16),
+                            TextFormField(
+                              controller: _initialWeightController,
+                              decoration: _inputDecoration(
+                                'Weight (kg)',
+                                'e.g. 250',
+                              ).copyWith(
+                                suffixIcon: const Icon(
+                                    Icons.monitor_weight_outlined,
+                                    color: darkGreen),
+                              ),
+                              keyboardType: TextInputType.number,
+                              validator: (value) {
+                                if (_addInitialWeight &&
+                                    (value == null || value.isEmpty)) {
+                                  return 'Please enter weight';
+                                }
+                                if (_addInitialWeight) {
+                                  final weight = double.tryParse(value!);
+                                  if (weight == null ||
+                                      weight <= 0 ||
+                                      weight > 1500) {
+                                    return 'Enter a valid weight (1-1500 kg)';
+                                  }
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              'Weight will be recorded with today\'s date',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[700],
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    _buildSectionTitle('🐄 Breed Information'),
                     const SizedBox(height: 12),
                     _buildCard(
                       child: Column(
@@ -712,7 +837,7 @@ class _AddCattlePageState extends State<AddCattlePage> {
                       ),
                     ),
                     const SizedBox(height: 24),
-                    _buildSectionTitle('Additional Notes'),
+                    _buildSectionTitle('📝 Additional Notes'),
                     const SizedBox(height: 12),
                     _buildCard(
                       child: TextFormField(
@@ -726,70 +851,8 @@ class _AddCattlePageState extends State<AddCattlePage> {
                     ),
                     const SizedBox(height: 24),
 
-                    // Initial Weight Section
-                    _buildSectionTitle('Initial Weight (Optional)'),
-                    const SizedBox(height: 12),
-                    _buildCard(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          CheckboxListTile(
-                            title: const Text('Add initial weight'),
-                            value: _addInitialWeight,
-                            onChanged: (value) {
-                              setState(() {
-                                _addInitialWeight = value ?? false;
-                                if (!_addInitialWeight) {
-                                  _initialWeightController.clear();
-                                  _initialWeightDate = null;
-                                }
-                              });
-                            },
-                            controlAffinity: ListTileControlAffinity.leading,
-                            contentPadding: EdgeInsets.zero,
-                          ),
-                          if (_addInitialWeight) ...[
-                            const SizedBox(height: 16),
-                            TextFormField(
-                              controller: _initialWeightController,
-                              decoration: _inputDecoration(
-                                'Weight (kg)',
-                                'e.g. 250',
-                              ),
-                              keyboardType: TextInputType.number,
-                              validator: (value) {
-                                if (_addInitialWeight &&
-                                    (value == null || value.isEmpty)) {
-                                  return 'Please enter weight';
-                                }
-                                if (_addInitialWeight) {
-                                  final weight = double.tryParse(value!);
-                                  if (weight == null ||
-                                      weight <= 0 ||
-                                      weight > 1500) {
-                                    return 'Enter a valid weight (1-1500 kg)';
-                                  }
-                                }
-                                return null;
-                              },
-                            ),
-                            const SizedBox(height: 12),
-                            const Text(
-                              'Weight will be recorded with today\'s date',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey,
-                                fontStyle: FontStyle.italic,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-
                     // Cattle Documents Section
-                    _buildSectionTitle('Branding Documents (Optional)'),
+                    _buildSectionTitle('📄 Branding Documents (Optional)'),
                     const SizedBox(height: 12),
                     _buildCard(
                       child: Column(
@@ -804,7 +867,10 @@ class _AddCattlePageState extends State<AddCattlePage> {
                                   const SizedBox(height: 8),
                                   Text(
                                     'No documents added',
-                                    style: TextStyle(color: Colors.grey[600]),
+                                    style: TextStyle(
+                                      color: Colors.grey[700],
+                                      fontSize: 14,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -816,9 +882,17 @@ class _AddCattlePageState extends State<AddCattlePage> {
                                 (index) => Padding(
                                   padding: const EdgeInsets.only(bottom: 8.0),
                                   child: ListTile(
-                                    leading:
-                                        const Icon(Icons.insert_drive_file),
-                                    title: Text(_documentTitles[index]),
+                                    leading: Icon(
+                                      Icons.insert_drive_file,
+                                      color: darkGreen,
+                                    ),
+                                    title: Text(
+                                      _documentTitles[index],
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w500,
+                                        color: Colors.black87,
+                                      ),
+                                    ),
                                     trailing: IconButton(
                                       icon: const Icon(Icons.close,
                                           color: Colors.red),
@@ -835,16 +909,16 @@ class _AddCattlePageState extends State<AddCattlePage> {
                           const SizedBox(height: 12),
                           SizedBox(
                             width: double.infinity,
-                            child: OutlinedButton(
+                            child: OutlinedButton.icon(
                               onPressed: _pickDocuments,
+                              icon: const Icon(Icons.upload_file),
+                              label:
+                                  const Text('Add Documents (PDF, JPG, PNG)'),
                               style: OutlinedButton.styleFrom(
                                 padding:
                                     const EdgeInsets.symmetric(vertical: 16),
                                 side: BorderSide(color: darkGreen),
-                              ),
-                              child: Text(
-                                'Add Documents (PDF, JPG, PNG)',
-                                style: TextStyle(color: darkGreen),
+                                foregroundColor: darkGreen,
                               ),
                             ),
                           ),
@@ -862,7 +936,7 @@ class _AddCattlePageState extends State<AddCattlePage> {
       bottomNavigationBar: Container(
         padding: const EdgeInsets.all(16.0),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).appBarTheme.backgroundColor,
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.05),
@@ -879,9 +953,13 @@ class _AddCattlePageState extends State<AddCattlePage> {
                     _isLoading ? null : () => Navigator.of(context).pop(),
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  side: BorderSide(color: Colors.grey[400]!),
+                  backgroundColor: Colors.white,
+                  foregroundColor: Colors.black87,
                 ),
-                child: const Text('Cancel'),
+                child: const Text(
+                  'Cancel',
+                  style: TextStyle(fontWeight: FontWeight.w500),
+                ),
               ),
             ),
             const SizedBox(width: 12),
@@ -903,7 +981,10 @@ class _AddCattlePageState extends State<AddCattlePage> {
                           strokeWidth: 2,
                         ),
                       )
-                    : const Text('Add Cattle'),
+                    : const Text(
+                        'Add Cattle',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
               ),
             ),
           ],
@@ -915,10 +996,10 @@ class _AddCattlePageState extends State<AddCattlePage> {
   Widget _buildSectionTitle(String title) {
     return Text(
       title,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 18,
         fontWeight: FontWeight.bold,
-        color: Colors.black87,
+        color: darkGreen,
       ),
     );
   }
