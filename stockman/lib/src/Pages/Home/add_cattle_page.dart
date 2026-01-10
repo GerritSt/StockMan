@@ -201,7 +201,7 @@ class _AddCattlePageState extends State<AddCattlePage> {
             ? _noteController.text.trim()
             : null,
         status: _selectedStatus,
-        pregnancy: 'unknown',
+        currentPregnancyStatus: 'unknown',
       );
 
       await _dbService.addCattle(

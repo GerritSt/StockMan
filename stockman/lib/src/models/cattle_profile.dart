@@ -12,7 +12,7 @@ class Cattle {
   final String? farmId;
   final String? note;
   final String status;
-  final String pregnancy;
+  final String currentPregnancyStatus;
 
   Cattle({
     required this.id,
@@ -28,7 +28,7 @@ class Cattle {
     this.farmId,
     this.note,
     this.status = 'alive',
-    this.pregnancy = 'unknown',
+    this.currentPregnancyStatus = 'unknown',
   });
 
   factory Cattle.fromJson(Map<String, dynamic> json) => Cattle(
@@ -49,7 +49,7 @@ class Cattle {
         farmId: json['farm_id'],
         note: json['note'],
         status: json['status'] ?? 'alive',
-        pregnancy: json['pregnancy'] ?? 'unknown',
+        currentPregnancyStatus: json['current_pregnancy_status'] ?? 'unknown',
       );
 
   Map<String, dynamic> toJson() => {
@@ -65,6 +65,6 @@ class Cattle {
         if (groupName != null) 'group_name': groupName,
         'note': note,
         'status': status,
-        'pregnancy': pregnancy,
+        'current_pregnancy_status': currentPregnancyStatus,
       };
 }

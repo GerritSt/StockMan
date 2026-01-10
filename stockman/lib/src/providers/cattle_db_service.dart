@@ -90,16 +90,18 @@ class CattleDbService {
   }
 
   // Update cattle pregnancy status
-  Future<void> updateCattlePregnancy({
+  Future<void> updateCattlePregnancyStatus({
     required String cattleId,
-    required String pregnancy,
+    required String currentPregnancyStatus,
   }) async {
     try {
       await _supabase
           .from('cattle')
-          .update({'pregnancy': pregnancy}).eq('id', cattleId);
+          .update({'current_pregnancy_status': currentPregnancyStatus}).eq(
+              'id', cattleId);
 
-      dlog('Cattle pregnancy status updated successfully to: $pregnancy');
+      dlog(
+          'Cattle pregnancy status updated successfully to: $currentPregnancyStatus');
     } catch (e) {
       dlog('Error updating cattle pregnancy: $e');
       rethrow;

@@ -42,7 +42,7 @@ class _CattleInfoPageState extends State<CattleInfoPage> {
   String? _selectedTagColor;
   String? _selectedSex;
   String _selectedStatus = 'alive';
-  String _selectedPregnancy = 'unknown';
+  String _selectedCurrentPregnancyStatus = 'unknown';
   Map<String, double> _breed = {};
   DateTime? _birthDate;
   DateTime? _weanDate;
@@ -76,7 +76,7 @@ class _CattleInfoPageState extends State<CattleInfoPage> {
         : null;
     _selectedSex = widget.cattle.sex;
     _selectedStatus = widget.cattle.status;
-    _selectedPregnancy = widget.cattle.pregnancy;
+    _selectedCurrentPregnancyStatus = widget.cattle.currentPregnancyStatus;
     _birthDate = widget.cattle.birthDate;
     _weanDate = widget.cattle.weanDate;
 
@@ -301,7 +301,7 @@ class _CattleInfoPageState extends State<CattleInfoPage> {
             ? null
             : _noteController.text.trim(),
         status: _selectedStatus,
-        pregnancy: _selectedPregnancy,
+        currentPregnancyStatus: _selectedCurrentPregnancyStatus,
       );
 
       await _dbService.updateCattle(
@@ -686,7 +686,7 @@ class _CattleInfoPageState extends State<CattleInfoPage> {
                           const SizedBox(height: 16),
                           _isEditMode
                               ? DropdownButtonFormField<String>(
-                                  value: _selectedPregnancy,
+                                  value: _selectedCurrentPregnancyStatus,
                                   decoration: InputDecoration(
                                     labelText: 'Pregnancy Status',
                                     border: OutlineInputBorder(
@@ -707,13 +707,13 @@ class _CattleInfoPageState extends State<CattleInfoPage> {
                                       .toList(),
                                   onChanged: (value) {
                                     setState(() {
-                                      _selectedPregnancy = value!;
+                                      _selectedCurrentPregnancyStatus = value!;
                                     });
                                   },
                                 )
                               : _buildReadOnlyField(
                                   label: 'Pregnancy Status',
-                                  value: _selectedPregnancy
+                                  value: _selectedCurrentPregnancyStatus
                                       .replaceAll('_', ' ')
                                       .toUpperCase(),
                                 ),
