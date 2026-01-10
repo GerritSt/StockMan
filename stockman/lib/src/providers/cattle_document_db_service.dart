@@ -105,6 +105,7 @@ class CattleDocumentDbService {
     required String documentType, // 'branding'
     String? title,
   }) async {
+    String? documentId;
     try {
       // Get file extension
       final fileExtension = file.path.split('.').last;
@@ -126,7 +127,7 @@ class CattleDocumentDbService {
           .select()
           .single();
 
-      final documentId = response['id'] as String;
+      documentId = response['id'] as String;
       dlog('Document record created with ID: $documentId');
 
       // Step 2: Generate storage path using the document UUID
@@ -139,8 +140,18 @@ class CattleDocumentDbService {
       );
 
       // Step 3: Upload file to Supabase Storage
-      await _supabase.storage.from(bucketName).upload(storagePath, file);
-      dlog('Document uploaded to storage: $storagePath');
+      try {
+        await _supabase.storage.from(bucketName).upload(storagePath, file);
+        dlog('Document uploaded to storage: $storagePath');
+      } catch (storageError) {
+        // If storage upload fails, delete the database record to avoid orphaned entries
+        dlog('Storage upload failed, cleaning up database record: $documentId');
+        await _supabase.from('cattle_documents').delete().eq('id', documentId);
+
+        // Rethrow with helpful message
+        throw Exception(
+            'Storage upload failed. Please ensure the storage bucket "$bucketName" exists and has proper RLS policies. Original error: $storageError');
+      }
 
       // Step 4: Update database record with the file path
       await _supabase
